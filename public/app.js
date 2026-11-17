@@ -276,13 +276,30 @@ class VoiceRecognitionManager {
             if (window.location.protocol === 'file:') {
               displayEl.innerHTML = '⚠️ <strong>Speech disabled on file://</strong><br/>Run <code>npm start</code> and open <a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a>';
             } else {
-              displayEl.innerText = '⚠️ Microphone blocked. Click the lock icon in your address bar to allow.';
+              displayEl.innerHTML = '⚠️ <strong>Microphone Blocked</strong>: Click the tune/lock icon 🔒 next to the URL in your address bar, set Microphone to <strong>"Allow"</strong>, and reload.';
             }
           }
+        } else if (err.error === 'audio-capture') {
+          this.shouldKeepListening = false;
+          this.isListening = false;
+          this.updateUi();
+          if (displayEl) displayEl.innerText = '⚠️ No microphone input detected on your machine.';
         } else if (err.error === 'network') {
           if (displayEl) displayEl.innerText = '⚠️ Speech network error. Retrying...';
         }
       };
+    } else {
+      setTimeout(() => {
+        const micStatus = document.getElementById('micStatusText');
+        const displayEl = document.getElementById('liveTranscriptDisplay');
+        if (micStatus) {
+          micStatus.innerText = 'Browser Not Supported';
+          micStatus.style.color = 'var(--accent-danger)';
+        }
+        if (displayEl) {
+          displayEl.innerHTML = '⚠️ <strong>Web Speech API is not supported in this browser (e.g. Firefox).</strong><br/>Please open <code>http://localhost:3000</code> in <strong>Google Chrome</strong>, <strong>Safari</strong>, or <strong>Edge</strong>.';
+        }
+      }, 100);
     }
   }
 
@@ -299,44 +316,62 @@ class VoiceRecognitionManager {
   }
 
   async start() {
-    if (!this.recognition) return;
+    const displayEl = document.getElementById('liveTranscriptDisplay');
+    const micStatus = document.getElementById('micStatusText');
 
-    // Check if on file:// protocol
+    // 1. Check browser engine support
+    if (!this.recognition) {
+      const msg = 'Speech recognition is not supported in this browser (e.g. Firefox). Please use Google Chrome, Safari, or Microsoft Edge.';
+      if (displayEl) displayEl.innerText = `⚠️ ${msg}`;
+      alert(msg);
+      return;
+    }
+
+    // 2. Check if on file:// protocol
     if (window.location.protocol === 'file:') {
-      const displayEl = document.getElementById('liveTranscriptDisplay');
       if (displayEl) {
-        displayEl.innerHTML = '⚠️ <strong>Browser security blocks mic on file://</strong><br/>Run <code>npm start</code> and visit <strong>http://localhost:3000</strong> to test live voice.';
+        displayEl.innerHTML = '⚠️ <strong>Microphone blocked on file://</strong><br/>Please open via <strong><a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a></strong>';
       }
-      alert('Microphone speech recognition is blocked by browser security on file:// URLs.\n\nPlease start the local server with:\n  npm start\nand open http://localhost:3000 in Chrome, Safari, or Edge.');
+      alert('Microphone speech recognition is blocked by browser security on file:// URLs.\n\nPlease open http://localhost:3000 in Chrome or Safari.');
       return;
     }
 
-    try {
-      // Explicitly trigger browser microphone permission dialog
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
+    // 3. Inspect existing permission status if query API is available
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const perm = await navigator.permissions.query({ name: 'microphone' });
+        if (perm.state === 'denied') {
+          if (micStatus) {
+            micStatus.innerText = 'Permission Blocked';
+            micStatus.style.color = 'var(--accent-danger)';
+          }
+          if (displayEl) {
+            displayEl.innerHTML = '⚠️ <strong>Microphone Blocked in Browser</strong><br/>Click the tune/lock icon 🔒 to the left of the URL bar and change Microphone from "Block" to "Allow", then refresh.';
+          }
+          alert('Microphone access is currently Blocked for localhost.\n\nTo fix:\n1. Click the icon directly to the left of "localhost:3000" in the address bar.\n2. Toggle Microphone to "Allow".\n3. Refresh the page.');
+          return;
+        }
+      } catch (e) {
+        // Permissions query not supported or failed, proceed to start()
       }
-    } catch (permErr) {
-      console.warn('Microphone permission request failed:', permErr);
-      const micStatus = document.getElementById('micStatusText');
-      if (micStatus) {
-        micStatus.innerText = 'Permission Denied';
-        micStatus.style.color = 'var(--accent-danger)';
-      }
-      const displayEl = document.getElementById('liveTranscriptDisplay');
-      if (displayEl) {
-        displayEl.innerText = '⚠️ Microphone blocked. Please allow mic permissions in browser settings.';
-      }
-      return;
     }
 
+    // 4. Start SpeechRecognition directly (this natively invokes the browser prompt)
     this.shouldKeepListening = true;
     try {
       this.recognition.start();
       this.isListening = true;
       this.updateUi();
+      if (displayEl) displayEl.innerText = 'Requesting mic access...';
     } catch (e) {
-      // If already started or aborting, ignore
+      console.warn('SpeechRecognition start error:', e);
+      if (e.name === 'InvalidStateError') {
+        // Already started
+        this.isListening = true;
+        this.updateUi();
+      } else {
+        if (displayEl) displayEl.innerText = `⚠️ Recognition failed: ${e.message || e.name}`;
+      }
     }
   }
 
