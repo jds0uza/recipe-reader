@@ -211,6 +211,7 @@ class VoiceRecognitionManager {
     this.recognition = null;
     this.isListening = false;
     this.shouldKeepListening = false;
+    this.restartTimeout = null;
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRec) {
@@ -218,6 +219,15 @@ class VoiceRecognitionManager {
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
+
+      this.recognition.onstart = () => {
+        this.isListening = true;
+        this.updateUi();
+        const displayEl = document.getElementById('liveTranscriptDisplay');
+        if (displayEl) {
+          displayEl.innerText = '🎙️ Listening... Say "Next", "Repeat", "How much butter?"';
+        }
+      };
 
       this.recognition.onresult = (event) => {
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -237,7 +247,12 @@ class VoiceRecognitionManager {
 
       this.recognition.onend = () => {
         if (this.shouldKeepListening) {
-          try { this.recognition.start(); } catch {}
+          clearTimeout(this.restartTimeout);
+          this.restartTimeout = setTimeout(() => {
+            if (this.shouldKeepListening) {
+              try { this.recognition.start(); } catch {}
+            }
+          }, 200);
         } else {
           this.isListening = false;
           this.updateUi();
@@ -245,11 +260,27 @@ class VoiceRecognitionManager {
       };
 
       this.recognition.onerror = (err) => {
-        console.warn('Speech recognition warning:', err.error);
-        if (err.error === 'not-allowed') {
+        console.warn('Speech recognition error event:', err.error);
+        const micStatus = document.getElementById('micStatusText');
+        const displayEl = document.getElementById('liveTranscriptDisplay');
+
+        if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
           this.shouldKeepListening = false;
           this.isListening = false;
           this.updateUi();
+          if (micStatus) {
+            micStatus.innerText = 'Permission Blocked';
+            micStatus.style.color = 'var(--accent-danger)';
+          }
+          if (displayEl) {
+            if (window.location.protocol === 'file:') {
+              displayEl.innerHTML = '⚠️ <strong>Speech disabled on file://</strong><br/>Run <code>npm start</code> and open <a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a>';
+            } else {
+              displayEl.innerText = '⚠️ Microphone blocked. Click the lock icon in your address bar to allow.';
+            }
+          }
+        } else if (err.error === 'network') {
+          if (displayEl) displayEl.innerText = '⚠️ Speech network error. Retrying...';
         }
       };
     }
@@ -267,18 +298,51 @@ class VoiceRecognitionManager {
     }
   }
 
-  start() {
+  async start() {
     if (!this.recognition) return;
+
+    // Check if on file:// protocol
+    if (window.location.protocol === 'file:') {
+      const displayEl = document.getElementById('liveTranscriptDisplay');
+      if (displayEl) {
+        displayEl.innerHTML = '⚠️ <strong>Browser security blocks mic on file://</strong><br/>Run <code>npm start</code> and visit <strong>http://localhost:3000</strong> to test live voice.';
+      }
+      alert('Microphone speech recognition is blocked by browser security on file:// URLs.\n\nPlease start the local server with:\n  npm start\nand open http://localhost:3000 in Chrome, Safari, or Edge.');
+      return;
+    }
+
+    try {
+      // Explicitly trigger browser microphone permission dialog
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (permErr) {
+      console.warn('Microphone permission request failed:', permErr);
+      const micStatus = document.getElementById('micStatusText');
+      if (micStatus) {
+        micStatus.innerText = 'Permission Denied';
+        micStatus.style.color = 'var(--accent-danger)';
+      }
+      const displayEl = document.getElementById('liveTranscriptDisplay');
+      if (displayEl) {
+        displayEl.innerText = '⚠️ Microphone blocked. Please allow mic permissions in browser settings.';
+      }
+      return;
+    }
+
     this.shouldKeepListening = true;
     try {
       this.recognition.start();
       this.isListening = true;
       this.updateUi();
-    } catch {}
+    } catch (e) {
+      // If already started or aborting, ignore
+    }
   }
 
   stop() {
     this.shouldKeepListening = false;
+    clearTimeout(this.restartTimeout);
     if (this.recognition && this.isListening) {
       try { this.recognition.stop(); } catch {}
       this.isListening = false;
@@ -289,14 +353,18 @@ class VoiceRecognitionManager {
   updateUi() {
     const micBtn = document.getElementById('btnToggleMic');
     const micStatus = document.getElementById('micStatusText');
+    const micHint = document.getElementById('micHintText');
+
     if (this.isListening) {
       micBtn.classList.add('active');
       micStatus.innerText = 'Listening Continuously';
       micStatus.style.color = 'var(--accent-secondary)';
+      if (micHint) micHint.innerText = 'Tap mic to pause listening';
     } else {
       micBtn.classList.remove('active');
       micStatus.innerText = 'Mic Inactive';
       micStatus.style.color = 'var(--text-muted)';
+      if (micHint) micHint.innerText = 'Tap mic to start listening';
     }
   }
 }
@@ -323,9 +391,19 @@ class RecipeApp {
   }
 
   bindEvents() {
+    // Protocol warning check for browser security on file://
+    if (window.location.protocol === 'file:') {
+      const banner = document.getElementById('fileProtocolWarning');
+      if (banner) banner.style.display = 'block';
+    }
+
     // Navigation buttons
     document.getElementById('btnNextStep').addEventListener('click', () => {
       this.soundEffects.playClick();
+      // Auto-engage voice mode on first user interaction if not listening yet
+      if (!this.voiceRecognition.isListening && window.location.protocol !== 'file:') {
+        this.voiceRecognition.start();
+      }
       this.next_step();
     });
 
@@ -360,10 +438,21 @@ class RecipeApp {
       });
     });
 
-    // Mic Toggle
-    document.getElementById('btnToggleMic').addEventListener('click', () => {
+    // Mic Toggle (Button & Subtitle Hint)
+    const toggleMic = () => {
       this.soundEffects.playClick();
       this.voiceRecognition.toggle();
+    };
+    document.getElementById('btnToggleMic').addEventListener('click', toggleMic);
+    const micHint = document.getElementById('micHintText');
+    if (micHint) micHint.addEventListener('click', toggleMic);
+
+    // Keyboard shortcut: Pressing 'm' toggles mic
+    window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.key === 'm' || e.key === 'M') {
+        toggleMic();
+      }
     });
 
     // Voice Cheat Sheet Pills (Clickable testing)
