@@ -1,196 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SousChef - Deterministic Voice Recipe Assistant</title>
+  <meta name="theme-color" content="#f5f1e8" />
+  <title>SousChef — Hands-free recipe guidance</title>
+  <link rel="preconnect" href="https://images.unsplash.com" />
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
 </head>
 
 <body>
-  <!-- File Protocol Warning Banner (Browser Security restricts mic on file://) -->
-  <div id="fileProtocolWarning"
-    style="display: none; background: #7f1d1d; color: #fecaca; padding: 0.75rem 1.5rem; text-align: center; font-size: 0.9rem; border-bottom: 1px solid #dc2626;">
-    ⚠️ <strong>Microphone speech recognition is blocked by browser security on <code>file://</code> URLs.</strong>
-    Please run <code>npm start</code> in your terminal and open <a href="http://localhost:3000"
-      style="color: #fff; text-decoration: underline; font-weight: 700;">http://localhost:3000</a> for live voice.
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="icon-chef" viewBox="0 0 24 24"><path d="M6 13.5V20h12v-6.5M8 17h8M7.2 13.5A4 4 0 0 1 8 5.6 4.5 4.5 0 0 1 16 5.6a4 4 0 0 1 .8 7.9Z"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></symbol>
+    <symbol id="icon-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3ZM19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15ZM5 13l.7 2.3L8 16l-2.3.7L5 19l-.7-2.3L2 16l2.3-.7L5 13Z"/></symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="icon-volume" viewBox="0 0 24 24"><path d="M5 10v4h3l4 3V7L8 10H5ZM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></symbol>
+    <symbol id="icon-back" viewBox="0 0 24 24"><path d="m10 7-5 5 5 5M5 12h14"/></symbol>
+    <symbol id="icon-forward" viewBox="0 0 24 24"><path d="m14 7 5 5-5 5M19 12H5"/></symbol>
+    <symbol id="icon-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3M20 5H9a5 5 0 0 0-5 5M7 22l-3-3 3-3M4 19h11a5 5 0 0 0 5-5"/></symbol>
+    <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+  </svg>
+
+  <div id="fileProtocolWarning" class="protocol-warning">
+    <strong>Microphone access needs a secure browser origin.</strong>
+    Run <code>npm start</code> and open <a href="http://localhost:3000">localhost:3000</a>.
   </div>
 
-  <!-- Header Bar -->
-  <header>
-    <div class="brand">
-      <span style="font-size: 1.8rem;">👩‍🍳</span>
-      <div>
-        <h1>SousChef</h1>
-      </div>
-    </div>
-
-    <!-- Screen Controls -->
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
-      <button id="btnWakeLock" class="btn-secondary" style="font-size: 0.8rem; padding: 0.5rem 0.8rem;"
-        title="Prevent screen from dimming/sleeping while cooking">
-        👁️ Keep Awake: Off
-      </button>
-    </div>
-
-    <!-- URL Input & Sample Loader -->
-    <div class="url-bar">
-      <input type="url" id="recipeUrlInput" class="url-input"
-        placeholder="Paste recipe URL (e.g. AllRecipes, SeriousEats, NYTCooking)..." />
-      <button class="btn-primary" id="btnLoadUrl">Load URL</button>
-      <select id="sampleSelect" class="url-input" style="max-width: 210px; cursor: pointer;">
-        <option value="">⚡ Load Sample Recipe...</option>
-        <option value="cookies">🍪 Chocolate Chip Cookies</option>
-        <option value="chicken">🍗 Tuscan Garlic Chicken</option>
-        <option value="pancakes">🥞 Fluffy Blueberry Pancakes</option>
-      </select>
-    </div>
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="SousChef home">
+      <span class="brand-mark"><svg><use href="#icon-chef"></use></svg></span>
+      <span>
+        <strong>SousChef</strong>
+        <small>Your hands-free cooking companion</small>
+      </span>
+    </a>
+    <button id="btnWakeLock" class="utility-button" title="Prevent the screen from sleeping while cooking">
+      <svg><use href="#icon-eye"></use></svg>
+      <span>Keep screen awake</span>
+    </button>
   </header>
 
-  <!-- Main Kitchen Grid -->
-  <main class="app-container">
-    <!-- Left Column: Recipe Meta, Scaler & Ingredients -->
-    <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <!-- Recipe Overview Card -->
-      <section class="card" id="recipeMetaCard">
-        <div class="card-title">
-          <span id="recipeTitleDisplay">Recipe Overview</span>
-        </div>
-        <p id="recipeDescDisplay" style="font-size: 0.85rem; color: var(--text-muted);">
-          Load a recipe URL or pick a sample above to begin hands-free cooking.
-        </p>
-
-        <!-- Recipe Servings Display -->
-        <div
-          style="display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.65rem 1rem;">
-          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Recipe Yield:</span>
-          <span class="badge" id="servingsDisplay" style="font-size: 0.85rem; font-weight: 700;">4 Servings</span>
-        </div>
-      </section>
-
-      <!-- Scaled Ingredients Card -->
-      <section class="card" style="flex: 1;">
-        <div class="card-title">
-          <span>Ingredients</span>
-          <span id="ingredientCount" class="badge">0 items</span>
-        </div>
-        <ul class="ingredients-list" id="ingredientsList">
-          <li style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">
-            Ingredients will appear here once a recipe is loaded.
-          </li>
-        </ul>
-      </section>
-    </aside>
-
-    <!-- Center Stage: Giant Step Reader -->
-    <section class="card step-reader-card" id="stepReaderCard">
-      <!-- Step Header -->
-      <div>
-        <div class="step-header">
-          <div class="step-counter" id="stepCounterDisplay">Ready to Cook</div>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <span id="speechStatusIndicator" class="badge"
-              style="display: none; background: rgba(56, 189, 248, 0.2); color: var(--accent-info); border-color: rgba(56, 189, 248, 0.3);">
-              🔊 Speaking...
-            </span>
-            <span id="stateStatusBadge" class="badge">IDLE</span>
-          </div>
-        </div>
-        <!-- Progress Bar -->
-        <div class="step-progress-track">
-          <div class="step-progress-bar" id="stepProgressBar"></div>
-        </div>
+  <main>
+    <section class="recipe-loader" aria-labelledby="loaderTitle">
+      <div class="loader-copy">
+        <span class="eyebrow">Cook without touching your screen</span>
+        <h1 id="loaderTitle">Turn any recipe into a guided cooking session.</h1>
+        <p>Paste a recipe link, leave the microphone on, and ask SousChef to move forward, repeat a step, or find an ingredient.</p>
       </div>
 
-      <!-- Step Body (High visibility at kitchen distance) -->
-      <div class="step-body" id="stepBodyContent">
-        <div id="stepInstructionText" class="step-instruction">
-          Click "Start Recipe" below or say "Next" to begin hands-free cooking!
+      <div class="loader-panel">
+        <label for="recipeUrlInput">Recipe URL</label>
+        <div class="url-bar">
+          <span class="input-icon"><svg><use href="#icon-link"></use></svg></span>
+          <input type="url" id="recipeUrlInput" class="url-input" placeholder="https://your-favorite-recipe.com/..." />
+          <button class="btn-primary" id="btnLoadUrl">
+            <span>Read recipe</span>
+            <svg><use href="#icon-forward"></use></svg>
+          </button>
         </div>
-      </div>
-
-      <!-- Step Navigation Actions -->
-      <div class="step-actions">
-        <button class="btn-secondary btn-large" id="btnPrevStep" title="Go to previous step (or say 'Back')">
-          ⬅ Previous
-        </button>
-        <button class="btn-secondary btn-large" id="btnRepeatStep" title="Repeat step aloud (or say 'Repeat')">
-          🔄 Repeat Step
-        </button>
-        <button class="btn-secondary btn-large" id="btnStopSpeech" style="border-color: var(--accent-danger); color: var(--accent-danger);" title="Stop speaking immediately (or say 'Stop')">
-          ⏹ Stop
-        </button>
-        <button class="btn-primary btn-large" id="btnNextStep" title="Advance to next step (or say 'Next')">
-          Next Step ➡
-        </button>
+        <div class="sample-row">
+          <span>Or start with a sample</span>
+          <select id="sampleSelect" class="sample-select" aria-label="Choose a sample recipe">
+            <option value="">Choose a recipe</option>
+            <option value="cookies">Chocolate chip cookies</option>
+            <option value="chicken">Tuscan garlic chicken</option>
+            <option value="pancakes">Blueberry pancakes</option>
+          </select>
+        </div>
       </div>
     </section>
 
-    <!-- Right Column: Voice Assistant, Timers & State Audit Log -->
-    <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
-      <!-- Voice Assistant Card -->
-      <section class="card">
-        <div class="card-title">
-          <span>Hands-Free Voice</span>
-          <span id="micStatusText" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Mic
-            Inactive</span>
-        </div>
-
-        <div class="voice-mic-box">
-          <button class="mic-btn" id="btnToggleMic" title="Toggle microphone listening">
-            🎙️
-          </button>
-          <span id="micHintText"
-            style="font-size: 0.8rem; color: var(--accent-primary); font-weight: 600; cursor: pointer;">
-            👉 Click Mic to Turn ON
-          </span>
-          <div class="speech-live-text" id="liveTranscriptDisplay">
-            Click mic or say "Next", "Repeat", "How much butter?"
+    <section class="workspace" aria-label="Recipe cooking workspace">
+      <div class="cooking-column">
+        <section class="recipe-summary" id="recipeMetaCard">
+          <div class="recipe-summary-copy">
+            <span class="eyebrow">Now cooking</span>
+            <h2 id="recipeTitleDisplay">Recipe overview</h2>
+            <p id="recipeDescDisplay">Load a recipe URL or choose a sample to begin your guided cooking session.</p>
           </div>
-          <!-- Diagnostic & Direct Permission Trigger -->
-          <div
-            style="width: 100%; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.4rem;">
-            <button id="btnForceMicPrompt" class="btn-secondary"
-              style="font-size: 0.75rem; padding: 0.35rem 0.6rem; width: 100%;">
-              🔊 Request Browser Mic Permission
-            </button>
-            <div id="diagnosticInfo"
-              style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-primary); padding: 0.5rem; border-radius: 6px; font-family: monospace; display: none; text-align: left; line-height: 1.5;">
+          <div class="yield-block">
+            <span>Yield</span>
+            <strong id="servingsDisplay">4 servings</strong>
+          </div>
+        </section>
+
+        <section class="step-reader-card" id="stepReaderCard" aria-labelledby="stepCounterDisplay">
+          <div class="step-topline">
+            <div>
+              <span class="section-kicker">Guided cooking</span>
+              <div class="step-counter" id="stepCounterDisplay">Ready to cook</div>
+            </div>
+            <div class="status-cluster">
+              <span id="speechStatusIndicator" class="status-pill speaking-pill">
+                <svg><use href="#icon-volume"></use></svg>
+                Speaking
+              </span>
+              <span id="stateStatusBadge" class="status-pill">Ready</span>
             </div>
           </div>
-        </div>
 
-        <!-- Voice Cheat-Sheet Pills (Clickable) -->
-        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Try
-            Saying (or Click):</span>
-          <div class="voice-command-chips">
-            <button class="voice-chip" data-cmd="stop"
-              style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">"Stop"</button>
-            <button class="voice-chip" data-cmd="next">"Next"</button>
-            <button class="voice-chip" data-cmd="repeat">"Repeat"</button>
-            <button class="voice-chip" data-cmd="previous">"Back"</button>
-            <button class="voice-chip" data-cmd="how much butter do I need?">"How much butter?"</button>
+          <div class="step-progress-track" aria-hidden="true">
+            <div class="step-progress-bar" id="stepProgressBar"></div>
           </div>
+
+          <div class="step-body" id="stepBodyContent">
+            <div id="stepInstructionText" class="step-instruction">
+              When you are ready, start the recipe or say “Next.”
+            </div>
+          </div>
+
+          <div class="voice-reminder">
+            <svg><use href="#icon-spark"></use></svg>
+            <span>Your hands can stay busy. Say “repeat,” “back,” or “how much butter?” at any time.</span>
+          </div>
+
+          <div class="step-actions">
+            <button class="btn-secondary action-compact" id="btnPrevStep" title="Go to the previous step">
+              <svg><use href="#icon-back"></use></svg><span>Back</span>
+            </button>
+            <button class="btn-secondary action-compact" id="btnRepeatStep" title="Repeat this step aloud">
+              <svg><use href="#icon-repeat"></use></svg><span>Repeat</span>
+            </button>
+            <button class="btn-danger action-compact" id="btnStopSpeech" title="Stop speaking immediately">
+              <svg><use href="#icon-stop"></use></svg><span>Stop</span>
+            </button>
+            <button class="btn-primary action-next" id="btnNextStep" title="Advance to the next step">
+              <span>Start recipe</span><svg><use href="#icon-forward"></use></svg>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="assistant-column">
+        <section class="voice-card">
+          <div class="voice-card-header">
+            <div>
+              <span class="section-kicker">Voice assistant</span>
+              <h2>Hands-free mode</h2>
+            </div>
+            <span id="micStatusText" class="mic-status">Mic off</span>
+          </div>
+
+          <div class="voice-mic-box">
+            <div class="mic-rings">
+              <button class="mic-btn" id="btnToggleMic" title="Toggle microphone listening" aria-label="Toggle microphone">
+                <svg><use href="#icon-mic"></use></svg>
+              </button>
+            </div>
+            <button id="micHintText" class="mic-hint">Turn on microphone</button>
+            <div class="speech-live-text" id="liveTranscriptDisplay" aria-live="polite">
+              I’ll listen for commands while you cook.
+            </div>
+          </div>
+
+          <div class="command-section">
+            <span>Try saying</span>
+            <div class="voice-command-chips">
+              <button class="voice-chip" data-cmd="next">“Next step”</button>
+              <button class="voice-chip" data-cmd="repeat">“Repeat”</button>
+              <button class="voice-chip" data-cmd="previous">“Go back”</button>
+              <button class="voice-chip" data-cmd="how much butter do I need?">“How much butter?”</button>
+              <button class="voice-chip voice-chip-stop" data-cmd="stop">“Stop”</button>
+            </div>
+          </div>
+
+          <details class="permission-details">
+            <summary>Having trouble with your microphone?</summary>
+            <button id="btnForceMicPrompt" class="btn-secondary permission-button">
+              <svg><use href="#icon-lock"></use></svg>
+              Check microphone access
+            </button>
+            <div id="diagnosticInfo" class="diagnostic-info"></div>
+          </details>
+        </section>
+      </aside>
+    </section>
+
+    <section class="support-grid">
+      <section class="ingredients-card">
+        <div class="card-heading">
+          <div>
+            <span class="section-kicker">Mise en place</span>
+            <h2>Ingredients</h2>
+          </div>
+          <span id="ingredientCount" class="count-badge">0 items</span>
         </div>
+        <ul class="ingredients-list" id="ingredientsList">
+          <li class="empty-state">Ingredients will appear here once a recipe is loaded.</li>
+        </ul>
       </section>
 
-      <!-- State Machine Audit Log -->
-      <section class="card">
-        <div class="card-title">
-          <span>Log</span>
+      <section class="activity-card">
+        <div class="card-heading">
+          <div>
+            <span class="section-kicker">Session activity</span>
+            <h2>Assistant log</h2>
+          </div>
+          <svg class="heading-icon"><use href="#icon-list"></use></svg>
         </div>
         <div class="audit-log" id="auditLogDisplay">
-          <div class="audit-entry">[READY] SousChef State Machine initialized.</div>
+          <div class="audit-entry">SousChef is ready for your recipe.</div>
         </div>
       </section>
-    </aside>
+    </section>
   </main>
 
-  <!-- Client Application Script -->
+  <footer>
+    <span>SousChef</span>
+    <span>Designed for floury hands and busy kitchens. Photo by <a href="https://unsplash.com/@heftiba" target="_blank" rel="noreferrer">Toa Heftiba</a>.</span>
+  </footer>
+
   <script type="module" src="app.js"></script>
 </body>
-
 </html>

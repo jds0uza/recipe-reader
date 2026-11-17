@@ -72,6 +72,21 @@ class WebAudioEffects {
     osc.start(now);
     osc.stop(now + 0.4);
   }
+  playClick() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(480, now);
+    gain.gain.setValueAtTime(0.035, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.06);
+  }
   playAlarm() {
     const ctx = this.getContext();
     if (!ctx) return;
@@ -217,7 +232,7 @@ class VoiceRecognitionManager {
         this.updateUi();
         const displayEl = document.getElementById('liveTranscriptDisplay');
         if (displayEl) {
-          displayEl.innerText = '🎙️ Listening... Say "Next", "Repeat", "Stop"';
+          displayEl.innerText = 'Listening… Say “Next,” “Repeat,” or “Stop.”';
         }
       };
 
@@ -243,7 +258,7 @@ class VoiceRecognitionManager {
 
           // 1. High-priority STOP command: interrupts assistant mid-sentence!
           if (intent.action === 'STOP') {
-            displayEl.innerText = `🛑 Heard: "${transcript}" [STOP]`;
+            displayEl.innerText = `Heard “${transcript}” — stopping now.`;
             this.lastActionTime = Date.now();
             this.lastActionType = 'STOP';
             this.onIntent(intent);
@@ -303,18 +318,18 @@ class VoiceRecognitionManager {
           }
           if (displayEl) {
             if (window.location.protocol === 'file:') {
-              displayEl.innerHTML = '⚠️ <strong>Speech disabled on file://</strong><br/>Run <code>npm start</code> and open <a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a>';
+              displayEl.innerHTML = '<strong>Speech is disabled on file://</strong><br/>Run <code>npm start</code> and open <a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a>';
             } else {
-              displayEl.innerHTML = '⚠️ <strong>Microphone Blocked</strong>: Click the tune/lock icon 🔒 next to the URL in your address bar, set Microphone to <strong>"Allow"</strong>, and reload.';
+              displayEl.innerHTML = '<strong>Microphone blocked.</strong> Open the site permissions beside the address bar, set Microphone to <strong>Allow</strong>, and reload.';
             }
           }
         } else if (err.error === 'audio-capture') {
           this.shouldKeepListening = false;
           this.isListening = false;
           this.updateUi();
-          if (displayEl) displayEl.innerText = '⚠️ No microphone input detected on your machine.';
+          if (displayEl) displayEl.innerText = 'No microphone input was detected on this device.';
         } else if (err.error === 'network') {
-          if (displayEl) displayEl.innerText = '⚠️ Speech network error. Retrying...';
+          if (displayEl) displayEl.innerText = 'Speech network error. Retrying…';
         }
       };
     } else {
@@ -326,7 +341,7 @@ class VoiceRecognitionManager {
           micStatus.style.color = 'var(--accent-danger)';
         }
         if (displayEl) {
-          displayEl.innerHTML = '⚠️ <strong>Web Speech API is not supported in this browser (e.g. Firefox).</strong><br/>Please open <code>http://localhost:3000</code> in <strong>Google Chrome</strong>, <strong>Safari</strong>, or <strong>Edge</strong>.';
+          displayEl.innerHTML = '<strong>Voice recognition is not supported in this browser.</strong><br/>Please use Google Chrome, Safari, or Microsoft Edge.';
         }
       }, 100);
     }
@@ -351,7 +366,7 @@ class VoiceRecognitionManager {
     // 1. Check browser engine support
     if (!this.recognition) {
       const msg = 'Speech recognition is not supported in this browser (e.g. Firefox). Please use Google Chrome, Safari, or Microsoft Edge.';
-      if (displayEl) displayEl.innerText = `⚠️ ${msg}`;
+      if (displayEl) displayEl.innerText = msg;
       alert(msg);
       return;
     }
@@ -359,7 +374,7 @@ class VoiceRecognitionManager {
     // 2. Check if on file:// protocol
     if (window.location.protocol === 'file:') {
       if (displayEl) {
-        displayEl.innerHTML = '⚠️ <strong>Microphone blocked on file://</strong><br/>Please open via <strong><a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a></strong>';
+        displayEl.innerHTML = '<strong>Microphone blocked on file://</strong><br/>Please open <strong><a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a></strong>.';
       }
       alert('Microphone speech recognition is blocked by browser security on file:// URLs.\n\nPlease open http://localhost:3000 in Chrome or Safari.');
       return;
@@ -375,7 +390,7 @@ class VoiceRecognitionManager {
             micStatus.style.color = 'var(--accent-danger)';
           }
           if (displayEl) {
-            displayEl.innerHTML = '⚠️ <strong>Microphone Blocked in Browser</strong><br/>Click the tune/lock icon 🔒 to the left of the URL bar and change Microphone from "Block" to "Allow", then refresh.';
+            displayEl.innerHTML = '<strong>Microphone blocked in browser.</strong><br/>Open the site permissions beside the address bar, change Microphone from “Block” to “Allow,” then refresh.';
           }
           alert('Microphone access is currently Blocked for localhost.\n\nTo fix:\n1. Click the icon directly to the left of "localhost:3000" in the address bar.\n2. Toggle Microphone to "Allow".\n3. Refresh the page.');
           return;
@@ -399,7 +414,7 @@ class VoiceRecognitionManager {
         this.isListening = true;
         this.updateUi();
       } else {
-        if (displayEl) displayEl.innerText = `⚠️ Recognition failed: ${e.message || e.name}`;
+        if (displayEl) displayEl.innerText = `Recognition failed: ${e.message || e.name}`;
       }
     }
   }
@@ -421,14 +436,14 @@ class VoiceRecognitionManager {
 
     if (this.isListening) {
       micBtn.classList.add('active');
-      micStatus.innerText = 'Listening Continuously';
-      micStatus.style.color = 'var(--accent-secondary)';
-      if (micHint) micHint.innerText = 'Tap mic to pause listening';
+      micStatus.classList.add('is-active');
+      micStatus.innerText = 'Listening';
+      if (micHint) micHint.innerText = 'Pause microphone';
     } else {
       micBtn.classList.remove('active');
-      micStatus.innerText = 'Mic Inactive';
-      micStatus.style.color = 'var(--text-muted)';
-      if (micHint) micHint.innerText = 'Tap mic to start listening';
+      micStatus.classList.remove('is-active');
+      micStatus.innerText = 'Mic off';
+      if (micHint) micHint.innerText = 'Turn on microphone';
     }
   }
 }
@@ -505,15 +520,15 @@ class RecipeApp {
 
         // 1. Origin & Protocol check
         const isFile = window.location.protocol === 'file:';
-        diagBox.innerHTML += `• Protocol: <code>${window.location.protocol}//</code> ${isFile ? '<strong style="color:var(--accent-danger)">❌ BLOCKED on file:// (Must run npm start & open http://localhost:3000)</strong>' : '<strong style="color:var(--accent-secondary)">✅ OK (Valid Web Origin)</strong>'}<br/>`;
+        diagBox.innerHTML += `• Protocol: <code>${window.location.protocol}//</code> ${isFile ? '<strong style="color:var(--accent-danger)">Blocked on file:// (run npm start and open http://localhost:3000)</strong>' : '<strong style="color:var(--accent-secondary)">Valid web origin</strong>'}<br/>`;
 
         // 2. Web Speech Recognition API check
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        diagBox.innerHTML += `• Speech Engine: ${SpeechRec ? '<strong style="color:var(--accent-secondary)">✅ SpeechRecognition Available</strong>' : '<strong style="color:var(--accent-danger)">❌ Missing (Firefox/Unsupported)</strong>'}<br/>`;
+        diagBox.innerHTML += `• Speech engine: ${SpeechRec ? '<strong style="color:var(--accent-secondary)">SpeechRecognition available</strong>' : '<strong style="color:var(--accent-danger)">Missing or unsupported</strong>'}<br/>`;
 
         // 3. MediaDevices API
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          diagBox.innerHTML += `• Audio Devices API: <strong style="color:var(--accent-danger)">❌ navigator.mediaDevices is undefined</strong><br/>`;
+          diagBox.innerHTML += `• Audio devices API: <strong style="color:var(--accent-danger)">navigator.mediaDevices is unavailable</strong><br/>`;
           return;
         }
 
@@ -533,18 +548,18 @@ class RecipeApp {
           diagBox.innerHTML += `• Requesting <code>getUserMedia({ audio: true })</code>...<br/>`;
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const track = stream.getAudioTracks()[0];
-          diagBox.innerHTML += `• Audio Device: <strong style="color:var(--accent-secondary)">✅ ${track ? track.label || 'Default Microphone' : 'Active'}</strong><br/>`;
+          diagBox.innerHTML += `• Audio device: <strong style="color:var(--accent-secondary)">${track ? track.label || 'Default microphone' : 'Active'}</strong><br/>`;
           track.stop();
-          diagBox.innerHTML += `<strong style="color:var(--accent-secondary)">🎉 Permission GRANTED! Starting voice recognition now...</strong><br/>`;
+          diagBox.innerHTML += `<strong style="color:var(--accent-secondary)">Permission granted. Starting voice recognition…</strong><br/>`;
           this.voiceRecognition.start();
         } catch (err) {
           console.error('Diagnostic mic error:', err);
           diagBox.innerHTML += `• Browser Result: <strong style="color:var(--accent-danger)">${err.name}</strong> - ${err.message}<br/>`;
 
           if (err.name === 'NotAllowedError') {
-            diagBox.innerHTML += `<br/>👉 <strong>HOW TO UNBLOCK:</strong><br/>1. Look at the top of your browser directly to the left of <strong>localhost:3000</strong>.<br/>2. Click the <strong>tune / sliders icon 🔒</strong> in the address bar.<br/>3. Switch <strong>Microphone</strong> from <em>Block</em> to <strong>Allow</strong>.<br/>4. Refresh the page ($⌘+R$).`;
+            diagBox.innerHTML += `<br/><strong>How to unblock:</strong><br/>1. Open the site permissions beside <strong>localhost:3000</strong>.<br/>2. Switch <strong>Microphone</strong> from <em>Block</em> to <strong>Allow</strong>.<br/>3. Refresh the page.`;
           } else if (err.name === 'NotFoundError') {
-            diagBox.innerHTML += `<br/>👉 <strong>HOW TO FIX:</strong> No microphone input device was detected on your machine. Please plug in or select a microphone in macOS System Settings.`;
+            diagBox.innerHTML += `<br/><strong>How to fix:</strong> No microphone input device was detected. Plug in a microphone or select one in your system settings.`;
           }
         }
       });
@@ -702,9 +717,9 @@ class RecipeApp {
         this.speech.stop();
         this.status = 'AWAITING_INPUT';
         document.getElementById('stateStatusBadge').innerText = 'AWAITING_INPUT';
-        this.recordAudit(`🛑 Stopped speaking (Voice: "${intent.rawTranscript}")`);
+        this.recordAudit(`Stopped speaking (voice: "${intent.rawTranscript}")`);
         const liveEl = document.getElementById('liveTranscriptDisplay');
-        if (liveEl) liveEl.innerText = '🛑 Stopped. Ready for next command.';
+        if (liveEl) liveEl.innerText = 'Stopped. Ready for your next command.';
         break;
       case 'NEXT_STEP':
         this.next_step();
@@ -778,12 +793,12 @@ class RecipeApp {
       stepCounterEl.innerText = `Ready • ${this.recipe.steps.length} Steps Total`;
       instructionEl.innerText = `Click "Next Step" or say "Next" to begin Step 1.`;
       progressBar.style.width = '0%';
-      document.getElementById('btnNextStep').innerText = 'Start Recipe ➡';
+      document.getElementById('btnNextStep').innerHTML = '<span>Start recipe</span><svg><use href="#icon-forward"></use></svg>';
     } else if (this.status === 'COMPLETED') {
-      stepCounterEl.innerText = 'Completed! 🎉';
-      instructionEl.innerHTML = `<div class="completed-banner"><h2>All Done! 👨‍🍳</h2><p>You have finished making ${this.recipe.title}. Enjoy!</p></div>`;
+      stepCounterEl.innerText = 'Recipe complete';
+      instructionEl.innerHTML = `<div class="completed-banner"><h2>All done.</h2><p>You have finished making ${this.recipe.title}. Enjoy your meal.</p></div>`;
       progressBar.style.width = '100%';
-      document.getElementById('btnNextStep').innerText = 'Restart 🔄';
+      document.getElementById('btnNextStep').innerHTML = '<span>Cook again</span><svg><use href="#icon-repeat"></use></svg>';
     } else {
       const step = this.recipe.steps[this.currentStepIndex];
       stepCounterEl.innerText = `Step ${step.id} of ${this.recipe.steps.length}`;
@@ -792,8 +807,9 @@ class RecipeApp {
       const pct = Math.round(((this.currentStepIndex + 1) / this.recipe.steps.length) * 100);
       progressBar.style.width = `${pct}%`;
 
-      document.getElementById('btnNextStep').innerText =
-        this.currentStepIndex === this.recipe.steps.length - 1 ? 'Finish Recipe 🏆' : 'Next Step ➡';
+      document.getElementById('btnNextStep').innerHTML = this.currentStepIndex === this.recipe.steps.length - 1
+        ? '<span>Finish recipe</span><svg><use href="#icon-forward"></use></svg>'
+        : '<span>Next step</span><svg><use href="#icon-forward"></use></svg>';
     }
   }
 
@@ -943,14 +959,16 @@ class ScreenWakeLockManager {
     try {
       if (!this.wakeLock) {
         this.wakeLock = await navigator.wakeLock.request('screen');
-        btn.innerText = '👁️ Keep Awake: ON';
+        btn.innerHTML = '<svg><use href="#icon-eye"></use></svg><span>Screen stays awake</span>';
         btn.classList.add('btn-primary');
         btn.classList.remove('btn-secondary');
+        btn.classList.add('active');
         this.wakeLock.addEventListener('release', () => {
           this.wakeLock = null;
-          btn.innerText = '👁️ Keep Awake: Off';
+          btn.innerHTML = '<svg><use href="#icon-eye"></use></svg><span>Keep screen awake</span>';
           btn.classList.remove('btn-primary');
           btn.classList.add('btn-secondary');
+          btn.classList.remove('active');
         });
       } else {
         await this.wakeLock.release();
