@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This project intentionally has no external dependencies.
+printf '%s\n' "No project dependencies to install."
