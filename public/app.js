@@ -98,10 +98,8 @@ function parseVoiceCommand(text) {
   if (!clean) return { action: 'UNKNOWN', rawTranscript: text };
 
   // Stop / Pause / Silence (Top priority to interrupt assistant speech)
-  if (
-    /^(stop|pause|halt|be\s+quiet|quiet|shut\s+up|silence|cancel|stop\s+talking|mute|stfu)$/i.test(clean) ||
-    /\b(stop\s+talking|be\s+quiet)\b/i.test(clean)
-  ) {
+  // Matches any utterance containing stop, pause, quiet, silence, halt, etc.
+  if (/\b(stop|pause|halt|be\s+quiet|quiet|shut\s+up|silence|cancel|stop\s+talking|mute|stfu)\b/i.test(clean)) {
     return { action: 'STOP', rawTranscript: text };
   }
 
@@ -185,7 +183,11 @@ class SpeechManager {
     if (this.synth) {
       this.isSpeaking = false;
       this.echoDecayUntil = Date.now() + 200;
-      document.getElementById('speechStatusIndicator').style.display = 'none';
+      const indicator = document.getElementById('speechStatusIndicator');
+      if (indicator) indicator.style.display = 'none';
+      try {
+        this.synth.pause(); // Flushes Chromium audio buffer queue immediately
+      } catch {}
       this.synth.cancel();
     }
   }
@@ -225,11 +227,23 @@ class VoiceRecognitionManager {
           const transcript = item[0].transcript.trim();
           if (!transcript) continue;
           const displayEl = document.getElementById('liveTranscriptDisplay');
-          const intent = parseVoiceCommand(transcript);
+          
+          let intent = parseVoiceCommand(transcript);
+
+          // If top alternative didn't flag STOP, check other interim alternatives
+          if (intent.action !== 'STOP' && item.length > 1) {
+            for (let a = 1; a < item.length; ++a) {
+              const altIntent = parseVoiceCommand(item[a].transcript);
+              if (altIntent.action === 'STOP') {
+                intent = altIntent;
+                break;
+              }
+            }
+          }
 
           // 1. High-priority STOP command: interrupts assistant mid-sentence!
           if (intent.action === 'STOP') {
-            displayEl.innerText = `Heard: "${transcript}" [STOP]`;
+            displayEl.innerText = `🛑 Heard: "${transcript}" [STOP]`;
             this.lastActionTime = Date.now();
             this.lastActionType = 'STOP';
             this.onIntent(intent);
@@ -463,6 +477,14 @@ class RecipeApp {
       this.repeat_step();
     });
 
+    const stopBtn = document.getElementById('btnStopSpeech');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', () => {
+        this.soundEffects.playClick();
+        this.handleVoiceIntent({ action: 'STOP', rawTranscript: 'Manual Stop Button' });
+      });
+    }
+
     // Mic Toggle (Button & Subtitle Hint)
     const toggleMic = () => {
       this.soundEffects.playClick();
@@ -528,11 +550,18 @@ class RecipeApp {
       });
     }
 
-    // Keyboard shortcut: Pressing 'm' toggles mic
+    // Keyboard shortcuts:
+    // 'm' -> toggle mic
+    // Space or Escape or 's' -> instantly STOP speech
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       if (e.key === 'm' || e.key === 'M') {
         toggleMic();
+      } else if (e.key === ' ' || e.key === 'Escape' || e.key === 's' || e.key === 'S') {
+        if (this.speech && this.speech.isSpeaking) {
+          e.preventDefault();
+          this.handleVoiceIntent({ action: 'STOP', rawTranscript: 'Keyboard Stop' });
+        }
       }
     });
 

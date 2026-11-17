@@ -14,10 +14,9 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
   }
 
   // Stop / Pause / Silence (Top priority to interrupt speech)
-  if (
-    /^(stop|pause|halt|be\s+quiet|quiet|shut\s+up|silence|cancel|stop\s+talking|mute|stfu)$/i.test(text) ||
-    /\b(stop\s+talking|be\s+quiet|cancel\s+speech)\b/i.test(text)
-  ) {
+  // Matches any utterance containing stop, pause, quiet, silence, etc.,
+  // including natural phrasing like "stop reading", "please stop", "stop it", or when speaker audio blends in.
+  if (/\b(stop|pause|halt|be\s+quiet|quiet|shut\s+up|silence|cancel|stop\s+talking|mute|stfu)\b/i.test(text)) {
     return { action: 'STOP', rawTranscript };
   }
 

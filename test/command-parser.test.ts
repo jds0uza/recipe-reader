@@ -51,5 +51,8 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(parseVoiceCommand('quiet').action, 'STOP');
     assert.equal(parseVoiceCommand('stop talking').action, 'STOP');
     assert.equal(parseVoiceCommand('silence').action, 'STOP');
+    assert.equal(parseVoiceCommand('stop reading').action, 'STOP');
+    assert.equal(parseVoiceCommand('please stop').action, 'STOP');
+    assert.equal(parseVoiceCommand('preheat oven to 375 degrees stop').action, 'STOP');
   });
 });
