@@ -120,23 +120,6 @@ function parseVoiceCommand(text) {
     return { action: 'JUMP_TO_STEP', payload: { stepIndex: parseInt(jumpMatch[1], 10) }, rawTranscript: text };
   }
 
-  if (/\b(?:double|twice)\s+(?:the\s+)?(?:recipe|servings)?\b/i.test(clean)) {
-    return { action: 'SCALE_RECIPE', payload: { scaleFactor: 2.0 }, rawTranscript: text };
-  }
-  if (/\b(?:half|halve)\s+(?:the\s+)?(?:recipe|servings)?\b/i.test(clean)) {
-    return { action: 'SCALE_RECIPE', payload: { scaleFactor: 0.5 }, rawTranscript: text };
-  }
-  if (/\btriple\s+(?:the\s+)?(?:recipe|servings)?\b/i.test(clean)) {
-    return { action: 'SCALE_RECIPE', payload: { scaleFactor: 3.0 }, rawTranscript: text };
-  }
-
-  const scaleMatch = clean.match(/scale\s+(?:the\s+)?(?:recipe\s+)?to\s+(\d+(?:\.\d+)?)\s*(?:servings|people|portions|x)?/i);
-  if (scaleMatch) {
-    const val = parseFloat(scaleMatch[1]);
-    const isMultiplier = clean.endsWith('x') || clean.includes('factor');
-    return { action: 'SCALE_RECIPE', payload: isMultiplier ? { scaleFactor: val } : { targetServings: val }, rawTranscript: text };
-  }
-
   if (/\b(?:list|read|what\s+are)\s+(?:the\s+)?ingredients\b/i.test(clean) || clean === 'ingredients') {
     return { action: 'LIST_INGREDIENTS', rawTranscript: text };
   }
@@ -492,27 +475,6 @@ class RecipeApp {
       this.repeat_step();
     });
 
-    // Scaler controls
-    document.getElementById('btnServingsPlus').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      if (this.recipe) this.scale_recipe(this.recipe.currentServings + (this.recipe.originalServings <= 6 ? 1 : 2));
-    });
-
-    document.getElementById('btnServingsMinus').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      if (this.recipe && this.recipe.currentServings > 1) {
-        this.scale_recipe(Math.max(1, this.recipe.currentServings - (this.recipe.originalServings <= 6 ? 1 : 2)));
-      }
-    });
-
-    document.querySelectorAll('.preset-chip').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        this.soundEffects.playClick();
-        const factor = parseFloat(e.target.dataset.scale);
-        if (this.recipe) this.scale_recipe(factor, false);
-      });
-    });
-
     // Mic Toggle (Button & Subtitle Hint)
     const toggleMic = () => {
       this.soundEffects.playClick();
@@ -698,37 +660,6 @@ class RecipeApp {
     this.speakCurrentStep();
   }
 
-  scale_recipe(target, isServings = true) {
-    if (!this.recipe || target <= 0) return;
-
-    let factor;
-    let newServings;
-
-    if (isServings) {
-      newServings = target;
-      factor = target / this.recipe.originalServings;
-    } else {
-      factor = target;
-      newServings = Math.round(this.recipe.originalServings * factor * 10) / 10;
-    }
-
-    this.recipe.scaleFactor = Math.round(factor * 100) / 100;
-    this.recipe.currentServings = newServings;
-
-    // Rescale ingredients
-    this.recipe.ingredients = this.recipe.ingredients.map(ing => {
-      if (ing.quantity === null) return { ...ing };
-      return {
-        ...ing,
-        quantity: Math.round(ing.quantity * factor * 100) / 100
-      };
-    });
-
-    this.recordAudit(`Scaled recipe to ${newServings} servings (${this.recipe.scaleFactor}x).`);
-    this.speech.speak(`Recipe scaled to ${newServings} servings.`);
-    this.render();
-  }
-
   query_ingredient(name) {
     if (!this.recipe) return;
     const cleanName = name.toLowerCase().trim();
@@ -858,14 +789,8 @@ class RecipeApp {
     // Header & Meta
     document.getElementById('recipeTitleDisplay').innerText = this.recipe.title;
     document.getElementById('recipeDescDisplay').innerText = this.recipe.description || 'Hands-free cooking assistant ready.';
-    document.getElementById('servingsDisplay').innerText = this.recipe.currentServings;
+    document.getElementById('servingsDisplay').innerText = `${this.recipe.currentServings} Servings`;
     document.getElementById('stateStatusBadge').innerText = this.status;
-
-    // Update preset chips active state
-    document.querySelectorAll('.preset-chip').forEach(btn => {
-      const chipScale = parseFloat(btn.dataset.scale);
-      btn.classList.toggle('active', Math.abs(chipScale - this.recipe.scaleFactor) < 0.05);
-    });
 
     // Render Ingredients List
     const ingListEl = document.getElementById('ingredientsList');

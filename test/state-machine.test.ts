@@ -118,45 +118,6 @@ test('Recipe State Machine - Step Traversal & Progression', async (t) => {
   });
 });
 
-test('Recipe State Machine - Deterministic Scaling (scale_recipe)', async (t) => {
-  await t.test('scales recipe by target servings', () => {
-    const sm = new RecipeStateMachine();
-    sm.loadRecipe(CHOCOLATE_CHIP_COOKIES); // Original 24 servings
-
-    const scaled = sm.scale_recipe(48); // Double to 48 servings
-    assert.equal(scaled.currentServings, 48);
-    assert.equal(scaled.scaleFactor, 2.0);
-
-    // 2 1/4 cups flour (2.25) * 2 = 4.5 cups
-    const flour = scaled.ingredients.find(i => i.name.includes('flour'));
-    assert.equal(flour?.quantity, 4.5);
-
-    // 1 cup butter * 2 = 2 cups
-    const butter = scaled.ingredients.find(i => i.name.includes('butter'));
-    assert.equal(butter?.quantity, 2);
-  });
-
-  await t.test('scales recipe by factor directly', () => {
-    const sm = new RecipeStateMachine();
-    sm.loadRecipe(CHOCOLATE_CHIP_COOKIES);
-
-    const scaled = sm.scale_recipe(0.5, false); // Half scale factor
-    assert.equal(scaled.scaleFactor, 0.5);
-    assert.equal(scaled.currentServings, 12);
-
-    const eggs = scaled.ingredients.find(i => i.name.includes('eggs'));
-    assert.equal(eggs?.quantity, 1);
-  });
-
-  await t.test('rejects negative or zero scaling', () => {
-    const sm = new RecipeStateMachine();
-    sm.loadRecipe(CHOCOLATE_CHIP_COOKIES);
-
-    assert.throws(() => sm.scale_recipe(0), /Scale target must be positive/);
-    assert.throws(() => sm.scale_recipe(-2), /Scale target must be positive/);
-  });
-});
-
 test('Recipe State Machine - Ingredient Queries & Voice Readout', async (t) => {
   const sm = new RecipeStateMachine();
   sm.loadRecipe(CHOCOLATE_CHIP_COOKIES);

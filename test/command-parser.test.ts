@@ -34,20 +34,6 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(res2.payload?.stepIndex, 2);
   });
 
-  await t.test('classifies SCALE_RECIPE variations', () => {
-    const doubleCmd = parseVoiceCommand('double the recipe');
-    assert.equal(doubleCmd.action, 'SCALE_RECIPE');
-    assert.equal(doubleCmd.payload?.scaleFactor, 2.0);
-
-    const halfCmd = parseVoiceCommand('half the recipe');
-    assert.equal(halfCmd.action, 'SCALE_RECIPE');
-    assert.equal(halfCmd.payload?.scaleFactor, 0.5);
-
-    const scaleTo6 = parseVoiceCommand('scale the recipe to 6 servings');
-    assert.equal(scaleTo6.action, 'SCALE_RECIPE');
-    assert.equal(scaleTo6.payload?.targetServings, 6);
-  });
-
   await t.test('classifies QUERY_INGREDIENT queries', () => {
     const cmd1 = parseVoiceCommand('how much butter do I need?');
     assert.equal(cmd1.action, 'QUERY_INGREDIENT');

@@ -130,7 +130,7 @@ http://localhost:3000
 - **Repetition:** `"Repeat"`, `"Say that again"`, `"What was that"`
 - **Backtracking:** `"Back"`, `"Previous step"`, `"Go back"`
 - **Navigation:** `"Jump to step 4"`, `"Go to step 2"`
-- **Scaling:** `"Scale to 6 servings"`, `"Double the recipe"`, `"Half the recipe"`
+- **Interruption / Stop:** `"Stop"`, `"Pause"`, `"Quiet"`, `"Be quiet"`, `"Silence"`
 - **Ingredient Queries:** `"How much butter do I need?"`, `"How many eggs?"`, `"List ingredients"`
 - **Timer Control:** `"Set a timer for 10 minutes"`, `"Pause timer"`, `"Cancel timer"`
 

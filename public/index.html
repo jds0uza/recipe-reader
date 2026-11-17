@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,11 +8,14 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
 </head>
+
 <body>
   <!-- File Protocol Warning Banner (Browser Security restricts mic on file://) -->
-  <div id="fileProtocolWarning" style="display: none; background: #7f1d1d; color: #fecaca; padding: 0.75rem 1.5rem; text-align: center; font-size: 0.9rem; border-bottom: 1px solid #dc2626;">
+  <div id="fileProtocolWarning"
+    style="display: none; background: #7f1d1d; color: #fecaca; padding: 0.75rem 1.5rem; text-align: center; font-size: 0.9rem; border-bottom: 1px solid #dc2626;">
     ⚠️ <strong>Microphone speech recognition is blocked by browser security on <code>file://</code> URLs.</strong>
-    Please run <code>npm start</code> in your terminal and open <a href="http://localhost:3000" style="color: #fff; text-decoration: underline; font-weight: 700;">http://localhost:3000</a> for live voice.
+    Please run <code>npm start</code> in your terminal and open <a href="http://localhost:3000"
+      style="color: #fff; text-decoration: underline; font-weight: 700;">http://localhost:3000</a> for live voice.
   </div>
 
   <!-- Header Bar -->
@@ -20,28 +24,21 @@
       <span style="font-size: 1.8rem;">👩‍🍳</span>
       <div>
         <h1>SousChef</h1>
-        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 2px;">
-          <span class="badge">Deterministic State Machine</span>
-          <span class="badge badge-voice" id="voiceModeBadge">Web Speech API</span>
-        </div>
       </div>
     </div>
 
     <!-- Screen Controls -->
     <div style="display: flex; align-items: center; gap: 0.5rem;">
-      <button id="btnWakeLock" class="btn-secondary" style="font-size: 0.8rem; padding: 0.5rem 0.8rem;" title="Prevent screen from dimming/sleeping while cooking">
+      <button id="btnWakeLock" class="btn-secondary" style="font-size: 0.8rem; padding: 0.5rem 0.8rem;"
+        title="Prevent screen from dimming/sleeping while cooking">
         👁️ Keep Awake: Off
       </button>
     </div>
 
     <!-- URL Input & Sample Loader -->
     <div class="url-bar">
-      <input
-        type="url"
-        id="recipeUrlInput"
-        class="url-input"
-        placeholder="Paste recipe URL (e.g. AllRecipes, SeriousEats, NYTCooking)..."
-      />
+      <input type="url" id="recipeUrlInput" class="url-input"
+        placeholder="Paste recipe URL (e.g. AllRecipes, SeriousEats, NYTCooking)..." />
       <button class="btn-primary" id="btnLoadUrl">Load URL</button>
       <select id="sampleSelect" class="url-input" style="max-width: 210px; cursor: pointer;">
         <option value="">⚡ Load Sample Recipe...</option>
@@ -65,25 +62,11 @@
           Load a recipe URL or pick a sample above to begin hands-free cooking.
         </p>
 
-        <!-- Servings & Scale Factor -->
-        <div class="scaler-box">
-          <div style="display: flex; flex-direction: column;">
-            <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Servings</span>
-            <div class="servings-controls">
-              <button class="btn-icon" id="btnServingsMinus" title="Decrease servings">−</button>
-              <span class="servings-val" id="servingsDisplay">4</span>
-              <button class="btn-icon" id="btnServingsPlus" title="Increase servings">+</button>
-            </div>
-          </div>
-          <div style="display: flex; flex-direction: column; align-items: flex-end;">
-            <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Multiplier</span>
-            <div class="scale-presets">
-              <button class="preset-chip" data-scale="0.5">0.5x</button>
-              <button class="preset-chip active" data-scale="1.0">1x</button>
-              <button class="preset-chip" data-scale="2.0">2x</button>
-              <button class="preset-chip" data-scale="3.0">3x</button>
-            </div>
-          </div>
+        <!-- Recipe Servings Display -->
+        <div
+          style="display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.65rem 1rem;">
+          <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Recipe Yield:</span>
+          <span class="badge" id="servingsDisplay" style="font-size: 0.85rem; font-weight: 700;">4 Servings</span>
         </div>
       </section>
 
@@ -108,7 +91,8 @@
         <div class="step-header">
           <div class="step-counter" id="stepCounterDisplay">Ready to Cook</div>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <span id="speechStatusIndicator" class="badge" style="display: none; background: rgba(56, 189, 248, 0.2); color: var(--accent-info); border-color: rgba(56, 189, 248, 0.3);">
+            <span id="speechStatusIndicator" class="badge"
+              style="display: none; background: rgba(56, 189, 248, 0.2); color: var(--accent-info); border-color: rgba(56, 189, 248, 0.3);">
               🔊 Speaking...
             </span>
             <span id="stateStatusBadge" class="badge">IDLE</span>
@@ -156,39 +140,44 @@
       <section class="card">
         <div class="card-title">
           <span>Hands-Free Voice</span>
-          <span id="micStatusText" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Mic Inactive</span>
+          <span id="micStatusText" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Mic
+            Inactive</span>
         </div>
 
         <div class="voice-mic-box">
           <button class="mic-btn" id="btnToggleMic" title="Toggle microphone listening">
             🎙️
           </button>
-          <span id="micHintText" style="font-size: 0.8rem; color: var(--accent-primary); font-weight: 600; cursor: pointer;">
+          <span id="micHintText"
+            style="font-size: 0.8rem; color: var(--accent-primary); font-weight: 600; cursor: pointer;">
             👉 Click Mic to Turn ON
           </span>
           <div class="speech-live-text" id="liveTranscriptDisplay">
             Click mic or say "Next", "Repeat", "How much butter?"
           </div>
           <!-- Diagnostic & Direct Permission Trigger -->
-          <div style="width: 100%; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.4rem;">
-            <button id="btnForceMicPrompt" class="btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.6rem; width: 100%;">
+          <div
+            style="width: 100%; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.4rem;">
+            <button id="btnForceMicPrompt" class="btn-secondary"
+              style="font-size: 0.75rem; padding: 0.35rem 0.6rem; width: 100%;">
               🔊 Request Browser Mic Permission
             </button>
-            <div id="diagnosticInfo" style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-primary); padding: 0.5rem; border-radius: 6px; font-family: monospace; display: none; text-align: left; line-height: 1.5;">
+            <div id="diagnosticInfo"
+              style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-primary); padding: 0.5rem; border-radius: 6px; font-family: monospace; display: none; text-align: left; line-height: 1.5;">
             </div>
           </div>
         </div>
 
         <!-- Voice Cheat-Sheet Pills (Clickable) -->
         <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Try Saying (or Click):</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Try
+            Saying (or Click):</span>
           <div class="voice-command-chips">
-            <button class="voice-chip" data-cmd="stop" style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">"Stop"</button>
+            <button class="voice-chip" data-cmd="stop"
+              style="border-color: rgba(239, 68, 68, 0.4); color: #f87171;">"Stop"</button>
             <button class="voice-chip" data-cmd="next">"Next"</button>
             <button class="voice-chip" data-cmd="repeat">"Repeat"</button>
             <button class="voice-chip" data-cmd="previous">"Back"</button>
-            <button class="voice-chip" data-cmd="double the recipe">"Double recipe"</button>
-            <button class="voice-chip" data-cmd="half the recipe">"Half recipe"</button>
             <button class="voice-chip" data-cmd="how much butter do I need?">"How much butter?"</button>
             <button class="voice-chip" data-cmd="set a timer for 10 minutes">"Timer 10 mins"</button>
           </div>
@@ -199,7 +188,8 @@
       <section class="card">
         <div class="card-title">
           <span>Active Timers</span>
-          <button class="btn-secondary" id="btnAddQuickTimer" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">+ 5 Min</button>
+          <button class="btn-secondary" id="btnAddQuickTimer" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">+ 5
+            Min</button>
         </div>
         <div class="timers-container" id="timersContainer">
           <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem 0;">
@@ -211,8 +201,7 @@
       <!-- State Machine Audit Log -->
       <section class="card">
         <div class="card-title">
-          <span>State Machine Log</span>
-          <span class="badge" style="font-size: 0.65rem;">Deterministic</span>
+          <span>Log</span>
         </div>
         <div class="audit-log" id="auditLogDisplay">
           <div class="audit-entry">[READY] SousChef State Machine initialized.</div>
@@ -224,4 +213,5 @@
   <!-- Client Application Script -->
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

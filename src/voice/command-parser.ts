@@ -52,29 +52,6 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
     return { action: 'JUMP_TO_STEP', payload: { stepIndex }, rawTranscript };
   }
 
-  // Double / Half / Triple recipe shortcuts
-  if (/\b(?:double|twice)\s+(?:the\s+)?(?:recipe|servings)?\b/i.test(text)) {
-    return { action: 'SCALE_RECIPE', payload: { scaleFactor: 2.0 }, rawTranscript };
-  }
-  if (/\b(?:half|halve)\s+(?:the\s+)?(?:recipe|servings)?\b/i.test(text)) {
-    return { action: 'SCALE_RECIPE', payload: { scaleFactor: 0.5 }, rawTranscript };
-  }
-  if (/\btriple\s+(?:the\s+)?(?:recipe|servings)?\b/i.test(text)) {
-    return { action: 'SCALE_RECIPE', payload: { scaleFactor: 3.0 }, rawTranscript };
-  }
-
-  // Scale recipe to N servings or factor
-  const scaleMatch = text.match(/scale\s+(?:the\s+)?(?:recipe\s+)?to\s+(\d+(?:\.\d+)?)\s*(?:servings|people|portions|x)?/i);
-  if (scaleMatch) {
-    const val = parseFloat(scaleMatch[1]);
-    const isMultiplier = text.endsWith('x') || text.includes('factor');
-    return {
-      action: 'SCALE_RECIPE',
-      payload: isMultiplier ? { scaleFactor: val } : { targetServings: val },
-      rawTranscript
-    };
-  }
-
   // List all ingredients
   if (
     /\b(?:list|read|what\s+are)\s+(?:the\s+)?ingredients\b/i.test(text) ||

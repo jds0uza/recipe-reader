@@ -18,22 +18,14 @@ test('Integration Test - End-to-End Voice Cooking Session', async (t) => {
   assert.equal(sm.get_state().status, 'READY');
   assert.equal(sm.get_state().recipe?.currentServings, 4);
 
-  // 2. User says: "scale the recipe to 2 servings"
-  const scaleIntent = parseVoiceCommand('scale the recipe to 2 servings');
-  assert.equal(scaleIntent.action, 'SCALE_RECIPE');
-  sm.scale_recipe(scaleIntent.payload!.targetServings!);
-  assert.equal(sm.get_state().recipe?.currentServings, 2);
-  assert.equal(sm.get_state().recipe?.scaleFactor, 0.5);
-
-  // 3. User asks: "how much chicken do I need?"
+  // 2. User asks: "how much chicken do I need?"
   const queryIntent = parseVoiceCommand('how much chicken do I need?');
   assert.equal(queryIntent.action, 'QUERY_INGREDIENT');
   const queryResult = sm.query_ingredient('chicken');
   assert.equal(queryResult.found, true);
-  // 1.5 lbs halved = 0.75 lbs -> 3/4 lbs
-  assert.ok(queryResult.spokenText.includes('three quarters lbs of boneless skinless chicken breasts'));
+  assert.ok(queryResult.spokenText.includes('1 one half lbs of boneless skinless chicken breasts'));
 
-  // 4. User says: "what is next" -> Starts Step 1
+  // 3. User says: "what is next" -> Starts Step 1
   const next1 = parseVoiceCommand('what is next');
   assert.equal(next1.action, 'NEXT_STEP');
   const step1 = sm.next_step().step;
@@ -91,8 +83,7 @@ test('Integration Test - End-to-End Voice Cooking Session', async (t) => {
 
   // Verify history audit log contains full session trace
   const state = sm.get_state();
-  assert.ok(state.history.length >= 6);
-  assert.ok(state.history.some(h => h.includes('Scaled recipe to 2 servings')));
+  assert.ok(state.history.length >= 5);
   assert.ok(state.history.some(h => h.includes('Started recipe at step 1')));
   assert.ok(state.history.some(h => h.includes('Recipe completed!')));
 });

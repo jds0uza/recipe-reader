@@ -72,7 +72,6 @@ export interface VoiceCommandIntent {
     | 'PREVIOUS_STEP'
     | 'REPEAT_STEP'
     | 'JUMP_TO_STEP'
-    | 'SCALE_RECIPE'
     | 'QUERY_INGREDIENT'
     | 'LIST_INGREDIENTS'
     | 'START_TIMER'
