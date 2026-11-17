@@ -874,7 +874,102 @@ class RecipeApp {
   }
 }
 
+// --- PWA & Screen Wake Lock Support ---
+class PWAManager {
+  constructor(app) {
+    this.app = app;
+    this.wakeLock = null;
+    this.deferredPrompt = null;
+    this.init();
+  }
+
+  init() {
+    // 1. Register Service Worker for offline PWA functionality
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => {
+            console.log('[PWA] ServiceWorker registered with scope:', reg.scope);
+            const pwaBadge = document.getElementById('pwaBadge');
+            if (pwaBadge) pwaBadge.innerText = 'PWA Offline Active';
+          })
+          .catch((err) => {
+            console.warn('[PWA] ServiceWorker registration failed:', err);
+          });
+      });
+    }
+
+    // 2. Handle native PWA install prompt
+    const installBtn = document.getElementById('btnInstallApp');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPrompt = e;
+      if (installBtn) installBtn.style.display = 'inline-flex';
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!this.deferredPrompt) return;
+        this.deferredPrompt.prompt();
+        const choice = await this.deferredPrompt.userChoice;
+        if (choice.outcome === 'accepted') {
+          console.log('[PWA] User accepted install prompt');
+          installBtn.style.display = 'none';
+        }
+        this.deferredPrompt = null;
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] SousChef installed successfully!');
+      if (installBtn) installBtn.style.display = 'none';
+      const pwaBadge = document.getElementById('pwaBadge');
+      if (pwaBadge) pwaBadge.innerText = 'PWA Installed';
+    });
+
+    // 3. Screen Wake Lock API (keeps screen awake while cooking)
+    const wakeLockBtn = document.getElementById('btnWakeLock');
+    if (wakeLockBtn) {
+      if ('wakeLock' in navigator) {
+        wakeLockBtn.addEventListener('click', () => this.toggleWakeLock(wakeLockBtn));
+      } else {
+        wakeLockBtn.style.display = 'none'; // Unsupported browser
+      }
+    }
+
+    // 4. URL query param support for PWA shortcuts (e.g. /?recipe=chicken)
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedRecipe = urlParams.get('recipe');
+    if (requestedRecipe) {
+      setTimeout(() => this.app.loadSampleRecipe(requestedRecipe), 100);
+    }
+  }
+
+  async toggleWakeLock(btn) {
+    try {
+      if (!this.wakeLock) {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+        btn.innerText = '👁️ Keep Awake: ON';
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-secondary');
+        this.wakeLock.addEventListener('release', () => {
+          this.wakeLock = null;
+          btn.innerText = '👁️ Keep Awake: Off';
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-secondary');
+        });
+      } else {
+        await this.wakeLock.release();
+        this.wakeLock = null;
+      }
+    } catch (err) {
+      console.warn('Wake Lock error:', err);
+    }
+  }
+}
+
 // Initialize Application when DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
   window.app = new RecipeApp();
+  window.pwa = new PWAManager(window.app);
 });
