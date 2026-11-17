@@ -3,7 +3,6 @@
 > **An offline-first, deterministic state machine and hands-free voice interface for kitchen recipe navigation.**  
 > Built as an audio-first engineering showcase with swappable TTS/STT providers—running with native browser speech synthesis today, architected for ElevenLabs streaming voice integration.
 
-[![PWA](https://img.shields.io/badge/PWA-installable%20offline-purple.svg)](file:///Users/jdsouza/aifun/recipe%20reader/public/manifest.json)
 [![Tests](https://img.shields.io/badge/tests-61%20passing-brightgreen.svg)](file:///Users/jdsouza/aifun/recipe%20reader/test)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20external-blue.svg)](file:///Users/jdsouza/aifun/recipe%20reader/package.json)
 [![Offline First](https://img.shields.io/badge/offline-100%25-success.svg)](file:///Users/jdsouza/aifun/recipe%20reader)
@@ -18,16 +17,6 @@ Kitchen environments present unique challenges for conversational voice assistan
 2. **Deterministic state guarantees:** Cooking recipes are sequential workflows. The assistant must never hallucinate steps, lose track of current instructions, or skip prerequisites.
 3. **Ingredient mathematics:** Scaling 24 cookies to 36 requires deterministic fraction parsing (e.g., $2 \frac{1}{4}\text{ cups} \times 1.5 = 3 \frac{3}{8}\text{ cups}$), unit preservation, and spoken pronunciation mapping for natural TTS.
 4. **Asynchronous timer orchestration:** Cooking involves concurrent background timers that must interrupt or queue audio without desynchronizing the step reader.
-
----
-
-## 📱 Progressive Web App (PWA) & Kitchen Utilities
-
-SousChef is an installable, standalone **Progressive Web App**:
-- **Offline Caching:** Powered by [public/sw.js](file:///Users/jdsouza/aifun/recipe%20reader/public/sw.js) (Cache-First app shell + Stale-While-Revalidate recipe storage).
-- **Web App Manifest:** Configured in [public/manifest.json](file:///Users/jdsouza/aifun/recipe%20reader/public/manifest.json) with custom 192x192 & 512x512 maskable SVG icons and app shortcuts.
-- **Screen Wake Lock API:** Built-in "👁️ Keep Awake" toggle prevents tablets and phones from dimming/sleeping while hands are messy in the kitchen.
-- **Install Prompt:** Automatic native install prompt banner (`beforeinstallprompt`) on desktop Chrome, Android, Edge, and iOS Safari ("Add to Home Screen").
 
 ---
 
