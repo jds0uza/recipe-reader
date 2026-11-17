@@ -169,6 +169,14 @@
           <div class="speech-live-text" id="liveTranscriptDisplay">
             Click mic or say "Next", "Repeat", "How much butter?"
           </div>
+          <!-- Diagnostic & Direct Permission Trigger -->
+          <div style="width: 100%; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.4rem;">
+            <button id="btnForceMicPrompt" class="btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.6rem; width: 100%;">
+              🔊 Request Browser Mic Permission
+            </button>
+            <div id="diagnosticInfo" style="font-size: 0.72rem; color: var(--text-muted); background: var(--bg-primary); padding: 0.5rem; border-radius: 6px; font-family: monospace; display: none; text-align: left; line-height: 1.5;">
+            </div>
+          </div>
         </div>
 
         <!-- Voice Cheat-Sheet Pills (Clickable) -->

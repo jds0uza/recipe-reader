@@ -482,6 +482,62 @@ class RecipeApp {
     const micHint = document.getElementById('micHintText');
     if (micHint) micHint.addEventListener('click', toggleMic);
 
+    // Direct Browser Mic Permission Request & Diagnostic Helper
+    const forceBtn = document.getElementById('btnForceMicPrompt');
+    const diagBox = document.getElementById('diagnosticInfo');
+
+    if (forceBtn && diagBox) {
+      forceBtn.addEventListener('click', async () => {
+        diagBox.style.display = 'block';
+        diagBox.innerHTML = '<span style="color:var(--accent-info)">[Running Voice Diagnostics...]</span><br/>';
+
+        // 1. Origin & Protocol check
+        const isFile = window.location.protocol === 'file:';
+        diagBox.innerHTML += `• Protocol: <code>${window.location.protocol}//</code> ${isFile ? '<strong style="color:var(--accent-danger)">❌ BLOCKED on file:// (Must run npm start & open http://localhost:3000)</strong>' : '<strong style="color:var(--accent-secondary)">✅ OK (Valid Web Origin)</strong>'}<br/>`;
+
+        // 2. Web Speech Recognition API check
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        diagBox.innerHTML += `• Speech Engine: ${SpeechRec ? '<strong style="color:var(--accent-secondary)">✅ SpeechRecognition Available</strong>' : '<strong style="color:var(--accent-danger)">❌ Missing (Firefox/Unsupported)</strong>'}<br/>`;
+
+        // 3. MediaDevices API
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          diagBox.innerHTML += `• Audio Devices API: <strong style="color:var(--accent-danger)">❌ navigator.mediaDevices is undefined</strong><br/>`;
+          return;
+        }
+
+        // 4. Permission query if available
+        if (navigator.permissions && navigator.permissions.query) {
+          try {
+            const p = await navigator.permissions.query({ name: 'microphone' });
+            const pColor = p.state === 'granted' ? 'var(--accent-secondary)' : (p.state === 'denied' ? 'var(--accent-danger)' : 'var(--accent-primary)');
+            diagBox.innerHTML += `• Permission Query State: <strong style="color:${pColor}">${p.state.toUpperCase()}</strong><br/>`;
+          } catch (e) {
+            diagBox.innerHTML += `• Permission Query: ${e.message}<br/>`;
+          }
+        }
+
+        // 5. Explicitly invoke getUserMedia to trigger the browser prompt
+        try {
+          diagBox.innerHTML += `• Requesting <code>getUserMedia({ audio: true })</code>...<br/>`;
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const track = stream.getAudioTracks()[0];
+          diagBox.innerHTML += `• Audio Device: <strong style="color:var(--accent-secondary)">✅ ${track ? track.label || 'Default Microphone' : 'Active'}</strong><br/>`;
+          track.stop();
+          diagBox.innerHTML += `<strong style="color:var(--accent-secondary)">🎉 Permission GRANTED! Starting voice recognition now...</strong><br/>`;
+          this.voiceRecognition.start();
+        } catch (err) {
+          console.error('Diagnostic mic error:', err);
+          diagBox.innerHTML += `• Browser Result: <strong style="color:var(--accent-danger)">${err.name}</strong> - ${err.message}<br/>`;
+
+          if (err.name === 'NotAllowedError') {
+            diagBox.innerHTML += `<br/>👉 <strong>HOW TO UNBLOCK:</strong><br/>1. Look at the top of your browser directly to the left of <strong>localhost:3000</strong>.<br/>2. Click the <strong>tune / sliders icon 🔒</strong> in the address bar.<br/>3. Switch <strong>Microphone</strong> from <em>Block</em> to <strong>Allow</strong>.<br/>4. Refresh the page ($⌘+R$).`;
+          } else if (err.name === 'NotFoundError') {
+            diagBox.innerHTML += `<br/>👉 <strong>HOW TO FIX:</strong> No microphone input device was detected on your machine. Please plug in or select a microphone in macOS System Settings.`;
+          }
+        }
+      });
+    }
+
     // Keyboard shortcut: Pressing 'm' toggles mic
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
