@@ -1,0 +1,20 @@
+{
+  "name": "recipe-reader",
+  "version": "1.0.0",
+  "description": "Deterministic Recipe State Machine & Voice Reader (Offline First, ElevenLabs Ready)",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "start": "node --experimental-strip-types server.js"
+  },
+  "keywords": [
+    "recipe-reader",
+    "state-machine",
+    "voice-assistant",
+    "speech-synthesis",
+    "speech-recognition",
+    "elevenlabs-ready"
+  ],
+  "author": "",
+  "license": "MIT"
+}

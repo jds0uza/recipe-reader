@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { parseVoiceCommand } from '../src/voice/command-parser.ts';
+
+test('Voice Command Parser - Intent Classification', async (t) => {
+  await t.test('classifies NEXT_STEP intents', () => {
+    assert.equal(parseVoiceCommand('next').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('next step').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('continue').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('what is next').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('done').action, 'NEXT_STEP');
+  });
+
+  await t.test('classifies PREVIOUS_STEP intents', () => {
+    assert.equal(parseVoiceCommand('back').action, 'PREVIOUS_STEP');
+    assert.equal(parseVoiceCommand('previous step').action, 'PREVIOUS_STEP');
+    assert.equal(parseVoiceCommand('go back').action, 'PREVIOUS_STEP');
+  });
+
+  await t.test('classifies REPEAT_STEP intents', () => {
+    assert.equal(parseVoiceCommand('repeat').action, 'REPEAT_STEP');
+    assert.equal(parseVoiceCommand('repeat step').action, 'REPEAT_STEP');
+    assert.equal(parseVoiceCommand('say that again').action, 'REPEAT_STEP');
+    assert.equal(parseVoiceCommand('what was that').action, 'REPEAT_STEP');
+  });
+
+  await t.test('classifies JUMP_TO_STEP with target number', () => {
+    const res = parseVoiceCommand('jump to step 4');
+    assert.equal(res.action, 'JUMP_TO_STEP');
+    assert.equal(res.payload?.stepIndex, 4);
+
+    const res2 = parseVoiceCommand('go to step 2');
+    assert.equal(res2.action, 'JUMP_TO_STEP');
+    assert.equal(res2.payload?.stepIndex, 2);
+  });
+
+  await t.test('classifies SCALE_RECIPE variations', () => {
+    const doubleCmd = parseVoiceCommand('double the recipe');
+    assert.equal(doubleCmd.action, 'SCALE_RECIPE');
+    assert.equal(doubleCmd.payload?.scaleFactor, 2.0);
+
+    const halfCmd = parseVoiceCommand('half the recipe');
+    assert.equal(halfCmd.action, 'SCALE_RECIPE');
+    assert.equal(halfCmd.payload?.scaleFactor, 0.5);
+
+    const scaleTo6 = parseVoiceCommand('scale the recipe to 6 servings');
+    assert.equal(scaleTo6.action, 'SCALE_RECIPE');
+    assert.equal(scaleTo6.payload?.targetServings, 6);
+  });
+
+  await t.test('classifies QUERY_INGREDIENT queries', () => {
+    const cmd1 = parseVoiceCommand('how much butter do I need?');
+    assert.equal(cmd1.action, 'QUERY_INGREDIENT');
+    assert.equal(cmd1.payload?.ingredientName, 'butter');
+
+    const cmd2 = parseVoiceCommand('how many eggs');
+    assert.equal(cmd2.action, 'QUERY_INGREDIENT');
+    assert.equal(cmd2.payload?.ingredientName, 'eggs');
+  });
+
+  await t.test('classifies START_TIMER with minutes or seconds', () => {
+    const timer1 = parseVoiceCommand('set a timer for 10 minutes');
+    assert.equal(timer1.action, 'START_TIMER');
+    assert.equal(timer1.payload?.timerSeconds, 600);
+
+    const timer2 = parseVoiceCommand('start timer 45 seconds');
+    assert.equal(timer2.action, 'START_TIMER');
+    assert.equal(timer2.payload?.timerSeconds, 45);
+  });
+});

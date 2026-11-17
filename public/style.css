@@ -1,0 +1,476 @@
+:root {
+  --bg-primary: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-surface-elevated: #334155;
+  --accent-primary: #f59e0b; /* Warm Culinary Amber */
+  --accent-primary-hover: #d97706;
+  --accent-secondary: #10b981; /* Fresh Emerald Green */
+  --accent-info: #38bdf8;
+  --accent-danger: #ef4444;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --border-color: #334155;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --border-radius: 12px;
+  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* Header */
+header {
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background-color: rgba(245, 158, 11, 0.2);
+  color: var(--accent-primary);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-voice {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--accent-secondary);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.url-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 650px;
+}
+
+.url-input {
+  flex: 1;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.url-input:focus {
+  border-color: var(--accent-primary);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background-color: var(--accent-primary);
+  color: #000;
+  padding: 0.65rem 1.25rem;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface-elevated);
+  color: #fff;
+  padding: 0.65rem 1rem;
+}
+
+.btn-secondary:hover {
+  background-color: #475569;
+}
+
+/* Layout */
+.app-container {
+  display: grid;
+  grid-template-columns: 320px 1fr 340px;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  flex: 1;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .app-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Cards */
+.card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Scaler Widget */
+.scaler-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.servings-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: var(--bg-surface-elevated);
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.btn-icon:hover {
+  background-color: var(--accent-primary);
+  color: #000;
+}
+
+.servings-val {
+  font-size: 1.2rem;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: center;
+}
+
+.scale-presets {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.preset-chip {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-muted);
+  border-radius: 4px;
+}
+
+.preset-chip:hover, .preset-chip.active {
+  background-color: var(--accent-primary);
+  color: #000;
+}
+
+/* Ingredients List */
+.ingredients-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.ingredient-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.ingredient-item.checked {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.ingredient-item input[type="checkbox"] {
+  margin-top: 0.25rem;
+  cursor: pointer;
+  accent-color: var(--accent-secondary);
+}
+
+.ingredient-text {
+  flex: 1;
+}
+
+.ingredient-qty {
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+/* Center Stage: Step Reader */
+.step-reader-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem;
+  border: 1px solid #475569;
+}
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.step-counter {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.step-progress-track {
+  height: 8px;
+  background-color: var(--bg-primary);
+  border-radius: 999px;
+  margin: 1rem 0 2rem;
+  overflow: hidden;
+}
+
+.step-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.step-body {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.step-instruction {
+  font-size: 1.85rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.45;
+  letter-spacing: -0.3px;
+}
+
+.step-timer-cue {
+  margin-top: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--accent-primary);
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.step-timer-cue span {
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn-large {
+  font-size: 1.15rem;
+  padding: 1rem 1.8rem;
+  border-radius: 10px;
+}
+
+/* Voice Assistant Console */
+.voice-mic-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background-color: var(--bg-primary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.mic-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: var(--bg-surface-elevated);
+  color: #fff;
+  font-size: 1.8rem;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  transition: all 0.3s ease;
+}
+
+.mic-btn.active {
+  background-color: var(--accent-secondary);
+  color: #000;
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.speech-live-text {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-align: center;
+  min-height: 24px;
+  font-style: italic;
+}
+
+.voice-command-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.voice-chip {
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.voice-chip:hover {
+  background-color: var(--bg-surface-elevated);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+/* Active Timers Card */
+.timers-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.timer-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.timer-time {
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-secondary);
+}
+
+/* State Audit Log */
+.audit-log {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.audit-entry {
+  margin-bottom: 0.25rem;
+}
+
+/* Completed Overlay */
+.completed-banner {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.completed-banner h2 {
+  font-size: 2.2rem;
+  color: var(--accent-secondary);
+  margin-bottom: 0.5rem;
+}

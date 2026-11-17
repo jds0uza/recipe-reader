@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SousChef - Deterministic Voice Recipe Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header Bar -->
+  <header>
+    <div class="brand">
+      <span style="font-size: 1.8rem;">👩‍🍳</span>
+      <div>
+        <h1>SousChef</h1>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 2px;">
+          <span class="badge">Deterministic State Machine</span>
+          <span class="badge badge-voice" id="voiceModeBadge">Web Speech API</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- URL Input & Sample Loader -->
+    <div class="url-bar">
+      <input
+        type="url"
+        id="recipeUrlInput"
+        class="url-input"
+        placeholder="Paste recipe URL (e.g. AllRecipes, SeriousEats, NYTCooking)..."
+      />
+      <button class="btn-primary" id="btnLoadUrl">Load URL</button>
+      <select id="sampleSelect" class="url-input" style="max-width: 210px; cursor: pointer;">
+        <option value="">⚡ Load Sample Recipe...</option>
+        <option value="cookies">🍪 Chocolate Chip Cookies</option>
+        <option value="chicken">🍗 Tuscan Garlic Chicken</option>
+        <option value="pancakes">🥞 Fluffy Blueberry Pancakes</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Main Kitchen Grid -->
+  <main class="app-container">
+    <!-- Left Column: Recipe Meta, Scaler & Ingredients -->
+    <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <!-- Recipe Overview Card -->
+      <section class="card" id="recipeMetaCard">
+        <div class="card-title">
+          <span id="recipeTitleDisplay">Recipe Overview</span>
+        </div>
+        <p id="recipeDescDisplay" style="font-size: 0.85rem; color: var(--text-muted);">
+          Load a recipe URL or pick a sample above to begin hands-free cooking.
+        </p>
+
+        <!-- Servings & Scale Factor -->
+        <div class="scaler-box">
+          <div style="display: flex; flex-direction: column;">
+            <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Servings</span>
+            <div class="servings-controls">
+              <button class="btn-icon" id="btnServingsMinus" title="Decrease servings">−</button>
+              <span class="servings-val" id="servingsDisplay">4</span>
+              <button class="btn-icon" id="btnServingsPlus" title="Increase servings">+</button>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end;">
+            <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Multiplier</span>
+            <div class="scale-presets">
+              <button class="preset-chip" data-scale="0.5">0.5x</button>
+              <button class="preset-chip active" data-scale="1.0">1x</button>
+              <button class="preset-chip" data-scale="2.0">2x</button>
+              <button class="preset-chip" data-scale="3.0">3x</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scaled Ingredients Card -->
+      <section class="card" style="flex: 1;">
+        <div class="card-title">
+          <span>Ingredients</span>
+          <span id="ingredientCount" class="badge">0 items</span>
+        </div>
+        <ul class="ingredients-list" id="ingredientsList">
+          <li style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 2rem 0;">
+            Ingredients will appear here once a recipe is loaded.
+          </li>
+        </ul>
+      </section>
+    </aside>
+
+    <!-- Center Stage: Giant Step Reader -->
+    <section class="card step-reader-card" id="stepReaderCard">
+      <!-- Step Header -->
+      <div>
+        <div class="step-header">
+          <div class="step-counter" id="stepCounterDisplay">Ready to Cook</div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span id="speechStatusIndicator" class="badge" style="display: none; background: rgba(56, 189, 248, 0.2); color: var(--accent-info); border-color: rgba(56, 189, 248, 0.3);">
+              🔊 Speaking...
+            </span>
+            <span id="stateStatusBadge" class="badge">IDLE</span>
+          </div>
+        </div>
+        <!-- Progress Bar -->
+        <div class="step-progress-track">
+          <div class="step-progress-bar" id="stepProgressBar"></div>
+        </div>
+      </div>
+
+      <!-- Step Body (High visibility at kitchen distance) -->
+      <div class="step-body" id="stepBodyContent">
+        <div id="stepInstructionText" class="step-instruction">
+          Click "Start Recipe" below or say "Next" to begin hands-free cooking!
+        </div>
+
+        <!-- Detected Step Timer -->
+        <div id="stepTimerCueBox" class="step-timer-cue" style="display: none;">
+          <span style="font-size: 1.2rem;">⏱️</span>
+          <span id="stepTimerCueText">Step timer detected (10:00)</span>
+          <button class="btn-primary" id="btnStartStepTimer" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
+            Start Timer
+          </button>
+        </div>
+      </div>
+
+      <!-- Step Navigation Actions -->
+      <div class="step-actions">
+        <button class="btn-secondary btn-large" id="btnPrevStep" title="Go to previous step (or say 'Back')">
+          ⬅ Previous
+        </button>
+        <button class="btn-secondary btn-large" id="btnRepeatStep" title="Repeat step aloud (or say 'Repeat')">
+          🔄 Repeat Step
+        </button>
+        <button class="btn-primary btn-large" id="btnNextStep" title="Advance to next step (or say 'Next')">
+          Next Step ➡
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Column: Voice Assistant, Timers & State Audit Log -->
+    <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <!-- Voice Assistant Card -->
+      <section class="card">
+        <div class="card-title">
+          <span>Hands-Free Voice</span>
+          <span id="micStatusText" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Mic Inactive</span>
+        </div>
+
+        <div class="voice-mic-box">
+          <button class="mic-btn" id="btnToggleMic" title="Toggle microphone listening">
+            🎙️
+          </button>
+          <div class="speech-live-text" id="liveTranscriptDisplay">
+            Click mic or say "Next", "Repeat", "How much butter?"
+          </div>
+        </div>
+
+        <!-- Voice Cheat-Sheet Pills (Clickable) -->
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Try Saying (or Click):</span>
+          <div class="voice-command-chips">
+            <button class="voice-chip" data-cmd="next">"Next"</button>
+            <button class="voice-chip" data-cmd="repeat">"Repeat"</button>
+            <button class="voice-chip" data-cmd="previous">"Back"</button>
+            <button class="voice-chip" data-cmd="double the recipe">"Double recipe"</button>
+            <button class="voice-chip" data-cmd="half the recipe">"Half recipe"</button>
+            <button class="voice-chip" data-cmd="how much butter do I need?">"How much butter?"</button>
+            <button class="voice-chip" data-cmd="set a timer for 10 minutes">"Timer 10 mins"</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Timers Card -->
+      <section class="card">
+        <div class="card-title">
+          <span>Active Timers</span>
+          <button class="btn-secondary" id="btnAddQuickTimer" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">+ 5 Min</button>
+        </div>
+        <div class="timers-container" id="timersContainer">
+          <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+            No timers active. Timers will appear automatically when cooking steps require them!
+          </div>
+        </div>
+      </section>
+
+      <!-- State Machine Audit Log -->
+      <section class="card">
+        <div class="card-title">
+          <span>State Machine Log</span>
+          <span class="badge" style="font-size: 0.65rem;">Deterministic</span>
+        </div>
+        <div class="audit-log" id="auditLogDisplay">
+          <div class="audit-entry">[READY] SousChef State Machine initialized.</div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- Client Application Script -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
