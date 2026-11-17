@@ -58,6 +58,15 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(cmd2.payload?.ingredientName, 'eggs');
   });
 
+  await t.test('classifies STOP and interrupt intents', () => {
+    assert.equal(parseVoiceCommand('stop').action, 'STOP');
+    assert.equal(parseVoiceCommand('pause').action, 'STOP');
+    assert.equal(parseVoiceCommand('be quiet').action, 'STOP');
+    assert.equal(parseVoiceCommand('quiet').action, 'STOP');
+    assert.equal(parseVoiceCommand('stop talking').action, 'STOP');
+    assert.equal(parseVoiceCommand('silence').action, 'STOP');
+  });
+
   await t.test('classifies START_TIMER with minutes or seconds', () => {
     const timer1 = parseVoiceCommand('set a timer for 10 minutes');
     assert.equal(timer1.action, 'START_TIMER');

@@ -81,6 +81,7 @@ export interface VoiceCommandIntent {
     | 'CANCEL_TIMER'
     | 'PAUSE_RECIPE'
     | 'RESUME_RECIPE'
+    | 'STOP'
     | 'UNKNOWN';
   payload?: {
     stepIndex?: number;

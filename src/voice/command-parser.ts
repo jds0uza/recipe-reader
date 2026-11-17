@@ -13,6 +13,14 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
     return { action: 'UNKNOWN', rawTranscript };
   }
 
+  // Stop / Pause / Silence (Top priority to interrupt speech)
+  if (
+    /^(stop|pause|halt|be\s+quiet|quiet|shut\s+up|silence|cancel|stop\s+talking|mute|stfu)$/i.test(text) ||
+    /\b(stop\s+talking|be\s+quiet|cancel\s+speech)\b/i.test(text)
+  ) {
+    return { action: 'STOP', rawTranscript };
+  }
+
   // Next step
   if (
     /^(next|next\s+step|continue|done|finished|what(?:'?s|\s+is)\s+next|move\s+on|proceed)$/i.test(text) ||

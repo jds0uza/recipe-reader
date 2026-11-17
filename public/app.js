@@ -97,6 +97,14 @@ function parseVoiceCommand(text) {
   const clean = text.trim().toLowerCase();
   if (!clean) return { action: 'UNKNOWN', rawTranscript: text };
 
+  // Stop / Pause / Silence (Top priority to interrupt assistant speech)
+  if (
+    /^(stop|pause|halt|be\s+quiet|quiet|shut\s+up|silence|cancel|stop\s+talking|mute|stfu)$/i.test(clean) ||
+    /\b(stop\s+talking|be\s+quiet)\b/i.test(clean)
+  ) {
+    return { action: 'STOP', rawTranscript: text };
+  }
+
   if (/^(next|next\s+step|continue|done|finished|what(?:'?s|\s+is)\s+next|move\s+on)$/i.test(clean) || /\b(next\s+step|what(?:'?s|\s+is)\s+next)\b/i.test(clean)) {
     return { action: 'NEXT_STEP', rawTranscript: text };
   }
@@ -154,6 +162,7 @@ class SpeechManager {
   constructor() {
     this.synth = window.speechSynthesis;
     this.isSpeaking = false;
+    this.echoDecayUntil = 0;
   }
 
   speak(text, onEnd) {
@@ -179,12 +188,14 @@ class SpeechManager {
 
     utterance.onend = () => {
       this.isSpeaking = false;
+      this.echoDecayUntil = Date.now() + 650; // 650ms speaker echo cancellation cooldown
       document.getElementById('speechStatusIndicator').style.display = 'none';
       if (onEnd) onEnd();
     };
 
     utterance.onerror = (e) => {
       this.isSpeaking = false;
+      this.echoDecayUntil = Date.now() + 200;
       document.getElementById('speechStatusIndicator').style.display = 'none';
       if (e.error !== 'interrupted' && e.error !== 'canceled') {
         console.error('TTS error:', e);
@@ -198,20 +209,24 @@ class SpeechManager {
   stop() {
     if (this.synth) {
       this.isSpeaking = false;
+      this.echoDecayUntil = Date.now() + 200;
       document.getElementById('speechStatusIndicator').style.display = 'none';
       this.synth.cancel();
     }
   }
 }
 
-// --- Browser SpeechRecognition Listener ---
+// --- Browser SpeechRecognition Listener with Echo Cancellation ---
 class VoiceRecognitionManager {
-  constructor(onIntent) {
+  constructor(speechManager, onIntent) {
+    this.speechManager = speechManager;
     this.onIntent = onIntent;
     this.recognition = null;
     this.isListening = false;
     this.shouldKeepListening = false;
     this.restartTimeout = null;
+    this.lastActionTime = 0;
+    this.lastActionType = null;
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRec) {
@@ -225,7 +240,7 @@ class VoiceRecognitionManager {
         this.updateUi();
         const displayEl = document.getElementById('liveTranscriptDisplay');
         if (displayEl) {
-          displayEl.innerText = '🎙️ Listening... Say "Next", "Repeat", "How much butter?"';
+          displayEl.innerText = '🎙️ Listening... Say "Next", "Repeat", "Stop"';
         }
       };
 
@@ -233,11 +248,36 @@ class VoiceRecognitionManager {
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const item = event.results[i];
           const transcript = item[0].transcript.trim();
+          if (!transcript) continue;
           const displayEl = document.getElementById('liveTranscriptDisplay');
+          const intent = parseVoiceCommand(transcript);
 
+          // 1. High-priority STOP command: interrupts assistant mid-sentence!
+          if (intent.action === 'STOP') {
+            displayEl.innerText = `Heard: "${transcript}" [STOP]`;
+            this.lastActionTime = Date.now();
+            this.lastActionType = 'STOP';
+            this.onIntent(intent);
+            return;
+          }
+
+          // 2. ECHO CANCELLATION: Ignore audio while the computer itself is speaking or echoing
+          if (this.speechManager && (this.speechManager.isSpeaking || Date.now() < this.speechManager.echoDecayUntil)) {
+            console.log(`[Echo Cancellation] Ignored speaker output: "${transcript}"`);
+            return;
+          }
+
+          // 3. COMMAND DEBOUNCE: Prevent rapid multi-firing
           if (item.isFinal) {
+            const now = Date.now();
+            if (now - this.lastActionTime < 1100 && this.lastActionType === intent.action) {
+              console.log(`[Debounce] Ignored duplicate ${intent.action}`);
+              return;
+            }
+            this.lastActionTime = now;
+            this.lastActionType = intent.action;
+
             displayEl.innerText = `Heard: "${transcript}"`;
-            const intent = parseVoiceCommand(transcript);
             this.onIntent(intent);
           } else {
             displayEl.innerText = `Listening: "${transcript}..."`;
@@ -409,7 +449,7 @@ class RecipeApp {
   constructor() {
     this.soundEffects = new WebAudioEffects();
     this.speech = new SpeechManager();
-    this.voiceRecognition = new VoiceRecognitionManager((intent) => this.handleVoiceIntent(intent));
+    this.voiceRecognition = new VoiceRecognitionManager(this.speech, (intent) => this.handleVoiceIntent(intent));
 
     // Core State Machine variables
     this.status = 'IDLE';
@@ -768,6 +808,14 @@ class RecipeApp {
     this.recordAudit(`Voice command: [${intent.action}] "${intent.rawTranscript}"`);
 
     switch (intent.action) {
+      case 'STOP':
+        this.speech.stop();
+        this.status = 'AWAITING_INPUT';
+        document.getElementById('stateStatusBadge').innerText = 'AWAITING_INPUT';
+        this.recordAudit(`🛑 Stopped speaking (Voice: "${intent.rawTranscript}")`);
+        const liveEl = document.getElementById('liveTranscriptDisplay');
+        if (liveEl) liveEl.innerText = '🛑 Stopped. Ready for next command.';
+        break;
       case 'NEXT_STEP':
         this.next_step();
         break;
