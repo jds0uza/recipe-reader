@@ -129,14 +129,6 @@ function parseVoiceCommand(text) {
     return { action: 'QUERY_INGREDIENT', payload: { ingredientName: queryMatch[1].trim() }, rawTranscript: text };
   }
 
-  const timerMatch = clean.match(/(?:set|start)(?:\s+a)?\s+timer\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(minute|minutes|min|mins|second|seconds|sec|secs)/i);
-  if (timerMatch) {
-    const amt = parseFloat(timerMatch[1]);
-    const unit = timerMatch[2].toLowerCase();
-    const secs = unit.startsWith('min') ? amt * 60 : amt;
-    return { action: 'START_TIMER', payload: { timerSeconds: Math.round(secs), timerLabel: `${amt} ${unit} Timer` }, rawTranscript: text };
-  }
-
   return { action: 'UNKNOWN', rawTranscript: text };
 }
 
@@ -438,11 +430,7 @@ class RecipeApp {
     this.status = 'IDLE';
     this.recipe = null;
     this.currentStepIndex = -1;
-    this.timers = [];
     this.history = [];
-
-    // Real-time timer clock interval
-    setInterval(() => this.tickTimers(1), 1000);
 
     this.bindEvents();
     this.loadSampleRecipe('cookies'); // Preload sample recipe for immediate offline readiness
@@ -568,24 +556,11 @@ class RecipeApp {
       const val = e.target.value;
       if (val) this.loadSampleRecipe(val);
     });
-
-    // Step Timer Cue
-    document.getElementById('btnStartStepTimer').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      this.startCurrentStepTimer();
-    });
-
-    // Quick Timer
-    document.getElementById('btnAddQuickTimer').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      this.addTimer(300, '5 Min Kitchen Timer');
-    });
   }
 
   // --- Core State Machine Transitions ---
   loadRecipe(recipeData) {
     this.speech.stop();
-    this.timers = [];
     this.recipe = JSON.parse(JSON.stringify(recipeData));
     this.currentStepIndex = -1;
     this.status = 'READY';
@@ -690,51 +665,6 @@ class RecipeApp {
     });
   }
 
-  startCurrentStepTimer() {
-    if (!this.recipe || this.currentStepIndex < 0) return;
-    const step = this.recipe.steps[this.currentStepIndex];
-    if (step && step.timerSeconds) {
-      this.addTimer(step.timerSeconds, `Step ${step.id} Timer`);
-    }
-  }
-
-  addTimer(durationSeconds, label = 'Timer') {
-    const timer = {
-      id: `timer-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      label,
-      durationSeconds,
-      remainingSeconds: durationSeconds,
-      isPaused: false
-    };
-    this.timers.push(timer);
-    this.recordAudit(`Started timer: ${label} (${Math.round(durationSeconds / 60)} min).`);
-    this.speech.speak(`Timer set for ${Math.round(durationSeconds / 60)} minutes.`);
-    this.renderTimers();
-  }
-
-  tickTimers(deltaSec = 1) {
-    if (this.timers.length === 0) return;
-
-    const expired = [];
-    this.timers.forEach(t => {
-      if (!t.isPaused) {
-        t.remainingSeconds = Math.max(0, t.remainingSeconds - deltaSec);
-        if (t.remainingSeconds === 0) expired.push(t);
-      }
-    });
-
-    if (expired.length > 0) {
-      this.timers = this.timers.filter(t => t.remainingSeconds > 0);
-      expired.forEach(t => {
-        this.soundEffects.playAlarm();
-        this.recordAudit(`🔔 Timer Expired: ${t.label}!`);
-        this.speech.speak(`Your timer for ${t.label} is done!`);
-      });
-    }
-
-    this.renderTimers();
-  }
-
   handleVoiceIntent(intent) {
     this.recordAudit(`Voice command: [${intent.action}] "${intent.rawTranscript}"`);
 
@@ -759,10 +689,6 @@ class RecipeApp {
       case 'JUMP_TO_STEP':
         if (intent.payload?.stepIndex) this.jump_to_step(intent.payload.stepIndex);
         break;
-      case 'SCALE_RECIPE':
-        if (intent.payload?.scaleFactor) this.scale_recipe(intent.payload.scaleFactor, false);
-        else if (intent.payload?.targetServings) this.scale_recipe(intent.payload.targetServings, true);
-        break;
       case 'QUERY_INGREDIENT':
         if (intent.payload?.ingredientName) this.query_ingredient(intent.payload.ingredientName);
         break;
@@ -770,11 +696,6 @@ class RecipeApp {
         if (this.recipe) {
           const summary = `This recipe has ${this.recipe.ingredients.length} ingredients, including ${this.recipe.ingredients.slice(0, 3).map(i => i.name).join(', ')}.`;
           this.speech.speak(summary);
-        }
-        break;
-      case 'START_TIMER':
-        if (intent.payload?.timerSeconds) {
-          this.addTimer(intent.payload.timerSeconds, intent.payload.timerLabel || 'Kitchen Timer');
         }
         break;
       default:
@@ -823,19 +744,16 @@ class RecipeApp {
     const stepCounterEl = document.getElementById('stepCounterDisplay');
     const instructionEl = document.getElementById('stepInstructionText');
     const progressBar = document.getElementById('stepProgressBar');
-    const timerCueBox = document.getElementById('stepTimerCueBox');
 
     if (this.currentStepIndex === -1) {
       stepCounterEl.innerText = `Ready • ${this.recipe.steps.length} Steps Total`;
       instructionEl.innerText = `Click "Next Step" or say "Next" to begin Step 1.`;
       progressBar.style.width = '0%';
-      timerCueBox.style.display = 'none';
       document.getElementById('btnNextStep').innerText = 'Start Recipe ➡';
     } else if (this.status === 'COMPLETED') {
       stepCounterEl.innerText = 'Completed! 🎉';
       instructionEl.innerHTML = `<div class="completed-banner"><h2>All Done! 👨‍🍳</h2><p>You have finished making ${this.recipe.title}. Enjoy!</p></div>`;
       progressBar.style.width = '100%';
-      timerCueBox.style.display = 'none';
       document.getElementById('btnNextStep').innerText = 'Restart 🔄';
     } else {
       const step = this.recipe.steps[this.currentStepIndex];
@@ -845,62 +763,9 @@ class RecipeApp {
       const pct = Math.round(((this.currentStepIndex + 1) / this.recipe.steps.length) * 100);
       progressBar.style.width = `${pct}%`;
 
-      if (step.timerSeconds) {
-        timerCueBox.style.display = 'inline-flex';
-        const mins = Math.floor(step.timerSeconds / 60);
-        const secs = step.timerSeconds % 60;
-        document.getElementById('stepTimerCueText').innerText = `Step Timer Detected (${mins}:${secs.toString().padStart(2, '0')})`;
-      } else {
-        timerCueBox.style.display = 'none';
-      }
-
       document.getElementById('btnNextStep').innerText =
         this.currentStepIndex === this.recipe.steps.length - 1 ? 'Finish Recipe 🏆' : 'Next Step ➡';
     }
-  }
-
-  renderTimers() {
-    const container = document.getElementById('timersContainer');
-    if (this.timers.length === 0) {
-      container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem 0;">No active timers.</div>`;
-      return;
-    }
-
-    container.innerHTML = '';
-    this.timers.forEach(t => {
-      const mins = Math.floor(t.remainingSeconds / 60);
-      const secs = Math.floor(t.remainingSeconds % 60);
-      const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
-      const div = document.createElement('div');
-      div.className = 'timer-item';
-      div.innerHTML = `
-        <div>
-          <div style="font-weight: 600; font-size: 0.88rem;">${t.label}</div>
-          <div class="timer-time">${timeStr}</div>
-        </div>
-        <div style="display: flex; gap: 0.35rem;">
-          <button class="btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem;" data-action="toggle" data-id="${t.id}">
-            ${t.isPaused ? '▶' : '⏸'}
-          </button>
-          <button class="btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; color: var(--accent-danger);" data-action="cancel" data-id="${t.id}">
-            ✕
-          </button>
-        </div>
-      `;
-
-      div.querySelector('[data-action="toggle"]').addEventListener('click', () => {
-        t.isPaused = !t.isPaused;
-        this.renderTimers();
-      });
-
-      div.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-        this.timers = this.timers.filter(timer => timer.id !== t.id);
-        this.renderTimers();
-      });
-
-      container.appendChild(div);
-    });
   }
 
   recordAudit(text) {
@@ -956,12 +821,12 @@ class RecipeApp {
         ],
         steps: [
           { id: 1, instruction: 'Preheat oven to 375°F (190°C) and line two baking sheets with parchment paper.' },
-          { id: 2, instruction: 'Whisk together flour, baking soda, and salt in a bowl. Set aside.', timerSeconds: 30 },
-          { id: 3, instruction: 'Beat softened butter, granulated sugar, and brown sugar until creamy, about 2 minutes.', timerSeconds: 120 },
+          { id: 2, instruction: 'Whisk together flour, baking soda, and salt in a bowl. Set aside.' },
+          { id: 3, instruction: 'Beat softened butter, granulated sugar, and brown sugar until creamy, about 2 minutes.' },
           { id: 4, instruction: 'Add eggs one at a time, beating well, then fold in flour mixture and chocolate chips.' },
           { id: 5, instruction: 'Drop rounded tablespoons of dough onto baking sheets 2 inches apart.' },
-          { id: 6, instruction: 'Bake for 9 to 11 minutes until golden brown around edges but soft in center.', timerSeconds: 600 },
-          { id: 7, instruction: 'Cool on baking sheets for 2 minutes, then transfer to wire racks.', timerSeconds: 120 }
+          { id: 6, instruction: 'Bake for 9 to 11 minutes until golden brown around edges but soft in center.' },
+          { id: 7, instruction: 'Cool on baking sheets for 2 minutes, then transfer to wire racks.' }
         ]
       },
       chicken: {
@@ -981,10 +846,10 @@ class RecipeApp {
         ],
         steps: [
           { id: 1, instruction: 'Season chicken breasts evenly with Italian seasoning, salt, and pepper.' },
-          { id: 2, instruction: 'Heat olive oil in a skillet. Sear chicken for 5 minutes per side until golden brown (165°F).', timerSeconds: 300 },
-          { id: 3, instruction: 'Sauté minced garlic in skillet for 1 minute until fragrant.', timerSeconds: 60 },
-          { id: 4, instruction: 'Pour in heavy cream and broth, simmer for 3 minutes.', timerSeconds: 180 },
-          { id: 5, instruction: 'Stir in fresh baby spinach for 2 minutes until wilted, return chicken to pan, and serve.', timerSeconds: 120 }
+          { id: 2, instruction: 'Heat olive oil in a skillet. Sear chicken for 5 minutes per side until golden brown (165°F).' },
+          { id: 3, instruction: 'Sauté minced garlic in skillet for 1 minute until fragrant.' },
+          { id: 4, instruction: 'Pour in heavy cream and broth, simmer for 3 minutes.' },
+          { id: 5, instruction: 'Stir in fresh baby spinach for 2 minutes until wilted, return chicken to pan, and serve.' }
         ]
       },
       pancakes: {
@@ -1002,9 +867,9 @@ class RecipeApp {
         ],
         steps: [
           { id: 1, instruction: 'Whisk together flour, sugar, baking powder, and salt in a large bowl.' },
-          { id: 2, instruction: 'Whisk buttermilk, eggs, and melted butter. Fold wet ingredients into dry and rest for 5 minutes.', timerSeconds: 300 },
-          { id: 3, instruction: 'Pour 1/4 cup batter per pancake onto medium heat skillet. Cook for 3 minutes until bubbles form.', timerSeconds: 180 },
-          { id: 4, instruction: 'Flip and cook another 2 minutes until golden brown. Serve hot with maple syrup.', timerSeconds: 120 }
+          { id: 2, instruction: 'Whisk buttermilk, eggs, and melted butter. Fold wet ingredients into dry and rest for 5 minutes.' },
+          { id: 3, instruction: 'Pour 1/4 cup batter per pancake onto medium heat skillet. Cook for 3 minutes until bubbles form.' },
+          { id: 4, instruction: 'Flip and cook another 2 minutes until golden brown. Serve hot with maple syrup.' }
         ]
       }
     };

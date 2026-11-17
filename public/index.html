@@ -109,15 +109,6 @@
         <div id="stepInstructionText" class="step-instruction">
           Click "Start Recipe" below or say "Next" to begin hands-free cooking!
         </div>
-
-        <!-- Detected Step Timer -->
-        <div id="stepTimerCueBox" class="step-timer-cue" style="display: none;">
-          <span style="font-size: 1.2rem;">⏱️</span>
-          <span id="stepTimerCueText">Step timer detected (10:00)</span>
-          <button class="btn-primary" id="btnStartStepTimer" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">
-            Start Timer
-          </button>
-        </div>
       </div>
 
       <!-- Step Navigation Actions -->
@@ -179,21 +170,6 @@
             <button class="voice-chip" data-cmd="repeat">"Repeat"</button>
             <button class="voice-chip" data-cmd="previous">"Back"</button>
             <button class="voice-chip" data-cmd="how much butter do I need?">"How much butter?"</button>
-            <button class="voice-chip" data-cmd="set a timer for 10 minutes">"Timer 10 mins"</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Active Timers Card -->
-      <section class="card">
-        <div class="card-title">
-          <span>Active Timers</span>
-          <button class="btn-secondary" id="btnAddQuickTimer" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">+ 5
-            Min</button>
-        </div>
-        <div class="timers-container" id="timersContainer">
-          <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem 0;">
-            No timers active. Timers will appear automatically when cooking steps require them!
           </div>
         </div>
       </section>

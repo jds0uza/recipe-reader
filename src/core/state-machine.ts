@@ -11,41 +11,20 @@ import type {
   StateMachineStatus,
   StateSnapshot,
   StateListener,
-  StepChangeListener,
-  TimerExpiredListener,
-  ActiveTimer
+  StepChangeListener
 } from './types.ts';
 import { scaleIngredients, formatIngredientForVoice } from './recipe-scaler.ts';
-import { TimerEngine } from './timer-engine.ts';
-
-export interface StateMachineOptions {
-  autoStartTimers?: boolean;
-}
 
 export class RecipeStateMachine {
   private status: StateMachineStatus = 'IDLE';
   private recipe: Recipe | null = null;
   private currentStepIndex: number = -1; // 0-based; -1 before starting
-  private timerEngine: TimerEngine;
   private stateListeners: Set<StateListener> = new Set();
   private stepChangeListeners: Set<StepChangeListener> = new Set();
   private history: string[] = [];
   private lastError: string | null = null;
-  private options: StateMachineOptions;
 
-  constructor(options: StateMachineOptions = {}) {
-    this.options = {
-      autoStartTimers: false,
-      ...options
-    };
-    this.timerEngine = new TimerEngine();
-
-    // Re-emit timer expired events into state machine updates
-    this.timerEngine.onTimerExpired((timer) => {
-      this.recordHistory(`Timer '${timer.label}' expired.`);
-      this.notifyListeners();
-    });
-  }
+  constructor() {}
 
   /**
    * Loads a recipe into the state machine, resetting progress to READY state
@@ -55,7 +34,6 @@ export class RecipeStateMachine {
       throw new Error('Cannot load recipe: Recipe must contain at least one step.');
     }
 
-    this.timerEngine.reset();
     this.recipe = JSON.parse(JSON.stringify(recipe)); // Deep clone
     this.currentStepIndex = -1;
     this.status = 'READY';
@@ -260,78 +238,6 @@ export class RecipeStateMachine {
   }
 
   /**
-   * Sets a timer for specified duration in seconds
-   */
-  set_timer(durationSeconds: number, label?: string): ActiveTimer {
-    const stepLabel = label || (this.currentStepIndex >= 0 ? `Step ${this.currentStepIndex + 1}` : 'Cooking Timer');
-    const timer = this.timerEngine.startTimer(durationSeconds, stepLabel, this.currentStepIndex);
-    this.recordHistory(`Started timer "${stepLabel}" for ${Math.round(durationSeconds / 60)} minutes.`);
-    this.notifyListeners();
-    return timer;
-  }
-
-  /**
-   * Starts the timer specified in current step if available
-   */
-  start_current_step_timer(): ActiveTimer | null {
-    const step = this.getCurrentStep();
-    if (!step || !step.timerSeconds) return null;
-    return this.set_timer(step.timerSeconds, `Step ${step.id} Timer`);
-  }
-
-  /**
-   * Pauses an active timer
-   */
-  pause_timer(id: string): boolean {
-    const ok = this.timerEngine.pauseTimer(id);
-    if (ok) this.notifyListeners();
-    return ok;
-  }
-
-  /**
-   * Resumes an active timer
-   */
-  resume_timer(id: string): boolean {
-    const ok = this.timerEngine.resumeTimer(id);
-    if (ok) this.notifyListeners();
-    return ok;
-  }
-
-  /**
-   * Cancels an active timer
-   */
-  cancel_timer(id: string): boolean {
-    const ok = this.timerEngine.cancelTimer(id);
-    if (ok) this.notifyListeners();
-    return ok;
-  }
-
-  /**
-   * Deterministic virtual clock tick for timers (essential for fast unit testing!)
-   */
-  tick(deltaSeconds: number = 1): ActiveTimer[] {
-    const expired = this.timerEngine.tick(deltaSeconds);
-    if (expired.length > 0) {
-      this.notifyListeners();
-    }
-    return expired;
-  }
-
-  /**
-   * Starts real-time clock for browser environment
-   */
-  startClock(intervalMs: number = 1000): void {
-    this.timerEngine.startRealTimeClock(intervalMs);
-  }
-
-  /**
-   * Stops real-time clock
-   */
-  stopClock(): void {
-    this.timerEngine.stopRealTimeClock();
-  }
-
-  /**
    * Returns current RecipeStep or null
    */
   getCurrentStep(): RecipeStep | null {
@@ -350,7 +256,6 @@ export class RecipeStateMachine {
       recipe: this.recipe ? JSON.parse(JSON.stringify(this.recipe)) : null,
       currentStepIndex: this.currentStepIndex,
       totalSteps: this.recipe ? this.recipe.steps.length : 0,
-      activeTimers: this.timerEngine.getAllTimers(),
       history: [...this.history],
       lastError: this.lastError
     };
@@ -373,19 +278,7 @@ export class RecipeStateMachine {
     return () => this.stepChangeListeners.delete(listener);
   }
 
-  /**
-   * Subscribes to timer expirations
-   */
-  onTimerExpired(listener: TimerExpiredListener): () => void {
-    return this.timerEngine.onTimerExpired(listener);
-  }
-
   private handleStepEntered(step: RecipeStep): void {
-    // If autoStartTimers is set and step has a timer, auto start it
-    if (this.options.autoStartTimers && step.timerSeconds) {
-      this.set_timer(step.timerSeconds, `Step ${step.id} Timer`);
-    }
-
     for (const listener of this.stepChangeListeners) {
       try {
         listener(step, this.currentStepIndex, this.recipe!.steps.length);

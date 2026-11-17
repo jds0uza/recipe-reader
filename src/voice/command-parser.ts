@@ -69,34 +69,5 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
     return { action: 'QUERY_INGREDIENT', payload: { ingredientName }, rawTranscript };
   }
 
-  // Start timer: "set a timer for 10 minutes", "start timer 5 mins", "set 30 second timer"
-  const timerMatch = text.match(
-    /(?:set|start)(?:\s+a)?\s+timer\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(minute|minutes|min|mins|second|seconds|sec|secs|hour|hours|hr|hrs)/i
-  );
-  if (timerMatch) {
-    const amount = parseFloat(timerMatch[1]);
-    const unit = timerMatch[2].toLowerCase();
-    let seconds = amount;
-    if (unit.startsWith('min')) seconds = amount * 60;
-    else if (unit.startsWith('hour') || unit.startsWith('hr')) seconds = amount * 3600;
-
-    return {
-      action: 'START_TIMER',
-      payload: { timerSeconds: Math.round(seconds), timerLabel: `${amount} ${unit} Timer` },
-      rawTranscript
-    };
-  }
-
-  // Pause / resume / cancel timer
-  if (/\b(?:pause|stop)\s+(?:the\s+)?timer\b/i.test(text)) {
-    return { action: 'PAUSE_TIMER', rawTranscript };
-  }
-  if (/\b(?:resume|unpause)\s+(?:the\s+)?timer\b/i.test(text)) {
-    return { action: 'RESUME_TIMER', rawTranscript };
-  }
-  if (/\b(?:cancel|clear)\s+(?:the\s+)?timer\b/i.test(text)) {
-    return { action: 'CANCEL_TIMER', rawTranscript };
-  }
-
   return { action: 'UNKNOWN', rawTranscript };
 }

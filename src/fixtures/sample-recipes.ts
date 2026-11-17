@@ -28,46 +28,14 @@ export const CHOCOLATE_CHIP_COOKIES: Recipe = {
     { id: 'ing-9', raw: '2 cups semi-sweet chocolate chips', name: 'chocolate chips', quantity: 2, unit: 'cups' }
   ],
   steps: [
-    {
-      id: 1,
-      instruction: 'Preheat oven to 375°F (190°C) and line two large baking sheets with parchment paper.',
-      timerSeconds: undefined
-    },
-    {
-      id: 2,
-      instruction: 'In a medium bowl, whisk together the flour, baking soda, and salt. Set dry mixture aside.',
-      timerSeconds: 30
-    },
-    {
-      id: 3,
-      instruction: 'In a large stand mixer, beat the softened butter, granulated sugar, and brown sugar until creamy and light, about 2 minutes.',
-      timerSeconds: 120
-    },
-    {
-      id: 4,
-      instruction: 'Add eggs one at a time, beating well after each addition, then stir in vanilla extract.',
-      timerSeconds: undefined
-    },
-    {
-      id: 5,
-      instruction: 'Gradually blend in flour mixture on low speed, then fold in the chocolate chips with a spatula.',
-      timerSeconds: undefined
-    },
-    {
-      id: 6,
-      instruction: 'Drop rounded tablespoons of dough onto prepared baking sheets, leaving 2 inches between cookies.',
-      timerSeconds: undefined
-    },
-    {
-      id: 7,
-      instruction: 'Bake for 9 to 11 minutes until golden brown around the edges but still soft in the center.',
-      timerSeconds: 600 // 10 minutes
-    },
-    {
-      id: 8,
-      instruction: 'Cool on baking sheets for 2 minutes, then transfer cookies to wire racks to cool completely.',
-      timerSeconds: 120
-    }
+    { id: 1, instruction: 'Preheat oven to 375°F (190°C) and line two large baking sheets with parchment paper.' },
+    { id: 2, instruction: 'In a medium bowl, whisk together the flour, baking soda, and salt. Set dry mixture aside.' },
+    { id: 3, instruction: 'In a large stand mixer, beat the softened butter, granulated sugar, and brown sugar until creamy and light, about 2 minutes.' },
+    { id: 4, instruction: 'Add eggs one at a time, beating well after each addition, then stir in vanilla extract.' },
+    { id: 5, instruction: 'Gradually blend in flour mixture on low speed, then fold in the chocolate chips with a spatula.' },
+    { id: 6, instruction: 'Drop rounded tablespoons of dough onto prepared baking sheets, leaving 2 inches between cookies.' },
+    { id: 7, instruction: 'Bake for 9 to 11 minutes until golden brown around the edges but still soft in the center.' },
+    { id: 8, instruction: 'Cool on baking sheets for 2 minutes, then transfer cookies to wire racks to cool completely.' }
   ]
 };
 
@@ -95,36 +63,12 @@ export const TUSCAN_GARLIC_CHICKEN: Recipe = {
     { id: 'ing-9', raw: '1/2 cup grated Parmesan cheese', name: 'grated Parmesan cheese', quantity: 0.5, unit: 'cup' }
   ],
   steps: [
-    {
-      id: 1,
-      instruction: 'Season chicken breasts evenly with Italian seasoning, salt, and freshly cracked black pepper.',
-      timerSeconds: undefined
-    },
-    {
-      id: 2,
-      instruction: 'Heat olive oil in a large skillet over medium-high heat. Add chicken and sear for 5 minutes per side until golden brown and cooked through (165°F). Transfer to a plate.',
-      timerSeconds: 300 // 5 minutes
-    },
-    {
-      id: 3,
-      instruction: 'In the same skillet over medium heat, add minced garlic and sauté for 1 minute until fragrant.',
-      timerSeconds: 60
-    },
-    {
-      id: 4,
-      instruction: 'Pour in heavy whipping cream and chicken broth, stirring to scrape up any browned bits from the pan. Simmer for 3 minutes.',
-      timerSeconds: 180
-    },
-    {
-      id: 5,
-      instruction: 'Stir in sun-dried tomatoes and grated Parmesan cheese until sauce is smooth and slightly thickened.',
-      timerSeconds: undefined
-    },
-    {
-      id: 6,
-      instruction: 'Add fresh baby spinach and stir for 2 minutes until wilted, then return cooked chicken to skillet and spoon sauce over top before serving.',
-      timerSeconds: 120
-    }
+    { id: 1, instruction: 'Season chicken breasts evenly with Italian seasoning, salt, and freshly cracked black pepper.' },
+    { id: 2, instruction: 'Heat olive oil in a large skillet over medium-high heat. Add chicken and sear for 5 minutes per side until golden brown and cooked through (165°F). Transfer to a plate.' },
+    { id: 3, instruction: 'In the same skillet over medium heat, add minced garlic and sauté for 1 minute until fragrant.' },
+    { id: 4, instruction: 'Pour in heavy whipping cream and chicken broth, stirring to scrape up any browned bits from the pan. Simmer for 3 minutes.' },
+    { id: 5, instruction: 'Stir in sun-dried tomatoes and grated Parmesan cheese until sauce is smooth and slightly thickened.' },
+    { id: 6, instruction: 'Add fresh baby spinach and stir for 2 minutes until wilted, then return cooked chicken to skillet and spoon sauce over top before serving.' }
   ]
 };
 

@@ -34,31 +34,18 @@ test('Integration Test - End-to-End Voice Cooking Session', async (t) => {
   sm.finish_reading_step();
   assert.equal(sm.get_state().status, 'AWAITING_INPUT');
 
-  // 5. User says: "next step" -> Advances to Step 2 (sear chicken)
+  // 4. User says: "next step" -> Advances to Step 2 (sear chicken)
   const next2 = parseVoiceCommand('next step');
   assert.equal(next2.action, 'NEXT_STEP');
   const step2 = sm.next_step().step;
   assert.equal(step2?.id, 2);
-  assert.equal(step2?.timerSeconds, 300); // 5 minutes timer
   sm.finish_reading_step();
 
-  // 6. User says: "set a timer for 5 minutes"
-  const timerIntent = parseVoiceCommand('set a timer for 5 minutes');
-  assert.equal(timerIntent.action, 'START_TIMER');
-  const timer = sm.set_timer(timerIntent.payload!.timerSeconds!, timerIntent.payload!.timerLabel);
-  assert.equal(timer.durationSeconds, 300);
-  assert.equal(sm.get_state().activeTimers.length, 1);
+  // 5. User says: "stop" -> Instant speech interrupt
+  const stopIntent = parseVoiceCommand('stop');
+  assert.equal(stopIntent.action, 'STOP');
 
-  // 7. Fast forward 5 minutes deterministically
-  let expiredTimerLabel = '';
-  sm.onTimerExpired((exp) => {
-    expiredTimerLabel = exp.label;
-  });
-  sm.tick(300);
-  assert.ok(expiredTimerLabel.includes('Timer'));
-  assert.equal(sm.get_state().activeTimers.length, 0);
-
-  // 8. User asks: "say that again" -> Repeats current step 2
+  // 6. User asks: "say that again" -> Repeats current step 2
   const repeatIntent = parseVoiceCommand('say that again');
   assert.equal(repeatIntent.action, 'REPEAT_STEP');
   const repeatedStep = sm.repeat_step();
@@ -66,7 +53,7 @@ test('Integration Test - End-to-End Voice Cooking Session', async (t) => {
   assert.equal(sm.get_state().status, 'READING_STEP');
   sm.finish_reading_step();
 
-  // 9. Jump to step 6 (final step)
+  // 7. Jump to step 6 (final step)
   const jumpIntent = parseVoiceCommand('jump to step 6');
   assert.equal(jumpIntent.action, 'JUMP_TO_STEP');
   const step6 = sm.jump_to_step(jumpIntent.payload!.stepIndex!);

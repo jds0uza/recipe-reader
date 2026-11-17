@@ -144,25 +144,3 @@ test('Recipe State Machine - Ingredient Queries & Voice Readout', async (t) => {
     assert.ok(list[0].includes('flour'));
   });
 });
-
-test('Recipe State Machine - Step Timers & Virtual Time Control', async (t) => {
-  const sm = new RecipeStateMachine();
-  sm.loadRecipe(CHOCOLATE_CHIP_COOKIES);
-
-  await t.test('starts timer for current step and ticks virtually', () => {
-    sm.jump_to_step(7); // Step 7 has 10 min bake timer (600s)
-    const timer = sm.start_current_step_timer();
-    assert.ok(timer);
-    assert.equal(timer?.durationSeconds, 600);
-    assert.equal(sm.get_state().activeTimers.length, 1);
-
-    // Fast-forward 500s virtually in test
-    sm.tick(500);
-    assert.equal(sm.get_state().activeTimers[0].remainingSeconds, 100);
-
-    // Fast-forward remaining 100s -> expires
-    const expired = sm.tick(100);
-    assert.equal(expired.length, 1);
-    assert.equal(sm.get_state().activeTimers.length, 0);
-  });
-});

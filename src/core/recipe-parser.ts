@@ -1,63 +1,11 @@
 /**
  * Recipe Parser and Extractor
  * Parses Schema.org Recipe JSON-LD, microdata, or text format,
- * and extracts instruction steps, ingredients, and automated timer cues.
+ * and extracts instruction steps, ingredients, and metadata.
  */
 
 import type { Recipe, RecipeStep, Ingredient } from './types.ts';
 import { parseIngredient } from './recipe-scaler.ts';
-
-/**
- * Automatically detects cooking timer durations mentioned in step instruction text.
- * Returns duration in seconds if detected, or undefined.
- */
-export function detectStepTimerSeconds(instruction: string): number | undefined {
-  if (!instruction) return undefined;
-
-  // Regex patterns for hours, minutes, seconds, and ranges
-  // e.g. "for 15 minutes", "bake 25-30 mins", "for 1 hour", "for 45 seconds", "simmer 1.5 hours"
-  const patterns: Array<{ regex: RegExp; toSeconds: (m: RegExpMatchArray) => number }> = [
-    // Hours and minutes: e.g. "1 hour and 30 minutes", "1 hr 15 mins"
-    {
-      regex: /(\d+(?:\.\d+)?)\s*(?:hour|hours|hr|hrs)\s*(?:and)?\s*(\d+)\s*(?:minute|minutes|min|mins)\b/i,
-      toSeconds: (m) => Math.round(parseFloat(m[1]) * 3600 + parseInt(m[2], 10) * 60)
-    },
-    // Single or range hours: "2 hours", "1.5 hours", "1 to 2 hours"
-    {
-      regex: /(?:for|about)?\s*(\d+(?:\.\d+)?)(?:\s*(?:to|-)\s*(\d+(?:\.\d+)?))?\s*(?:hour|hours|hr|hrs)\b/i,
-      toSeconds: (m) => {
-        const val = m[2] ? parseFloat(m[2]) : parseFloat(m[1]);
-        return Math.round(val * 3600);
-      }
-    },
-    // Single or range minutes: "15 minutes", "25-30 mins", "10 to 12 minutes"
-    {
-      regex: /(?:for|about)?\s*(\d+(?:\.\d+)?)(?:\s*(?:to|-)\s*(\d+(?:\.\d+)?))?\s*(?:minute|minutes|min|mins)\b/i,
-      toSeconds: (m) => {
-        // If range, default to upper bound or average; here we pick lower or upper
-        const val = m[2] ? parseFloat(m[1]) : parseFloat(m[1]);
-        return Math.round(val * 60);
-      }
-    },
-    // Seconds: "30 seconds", "45 secs"
-    {
-      regex: /(?:for|about)?\s*(\d+)\s*(?:second|seconds|sec|secs)\b/i,
-      toSeconds: (m) => parseInt(m[1], 10)
-    }
-  ];
-
-  for (const { regex, toSeconds } of patterns) {
-    const match = instruction.match(regex);
-    if (match) {
-      const secs = toSeconds(match);
-      if (secs > 0 && secs <= 86400) {
-        return secs;
-      }
-    }
-  }
-
-  return undefined;
-}
 
 /**
  * Parses ISO 8601 duration string (e.g. "PT30M", "PT1H15M") to minutes
@@ -138,8 +86,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
       if (text) {
         steps.push({
           id: steps.length + 1,
-          instruction: text,
-          timerSeconds: detectStepTimerSeconds(text)
+          instruction: text
         });
       }
     } else if (item && typeof item === 'object') {
@@ -148,8 +95,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
         if (text) {
           steps.push({
             id: steps.length + 1,
-            instruction: text,
-            timerSeconds: detectStepTimerSeconds(text)
+            instruction: text
           });
         }
       } else if (item['@type'] === 'HowToSection' && Array.isArray(item.itemListElement)) {
@@ -169,8 +115,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
       .forEach(text => {
         steps.push({
           id: steps.length + 1,
-          instruction: text,
-          timerSeconds: detectStepTimerSeconds(text)
+          instruction: text
         });
       });
   }
