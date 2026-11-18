@@ -941,41 +941,109 @@ class RecipeApp {
 class ScreenWakeLockManager {
   constructor() {
     this.wakeLock = null;
+    this.shouldStayAwake = false;
+    this.button = document.getElementById('btnWakeLock');
+    this.message = document.getElementById('wakeLockMessage');
     this.init();
   }
 
   init() {
-    const wakeLockBtn = document.getElementById('btnWakeLock');
-    if (wakeLockBtn) {
-      if ('wakeLock' in navigator) {
-        wakeLockBtn.addEventListener('click', () => this.toggleWakeLock(wakeLockBtn));
-      } else {
-        wakeLockBtn.style.display = 'none'; // Unsupported browser
-      }
+    if (!this.button) return;
+
+    if (!('wakeLock' in navigator)) {
+      this.button.disabled = true;
+      this.button.title = 'Screen wake lock is not supported by this browser';
+      this.setButtonState('unavailable');
+      this.showMessage('This browser does not support keeping the screen awake.');
+      return;
+    }
+
+    this.button.addEventListener('click', () => this.toggleWakeLock());
+    document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
+  }
+
+  setButtonState(state) {
+    if (!this.button) return;
+
+    const labels = {
+      idle: 'Keep screen awake',
+      pending: 'Turning on…',
+      active: 'Screen stays awake',
+      paused: 'Wake lock paused',
+      unavailable: 'Wake lock unavailable'
+    };
+
+    this.button.innerHTML = `<svg><use href="#icon-eye"></use></svg><span>${labels[state]}</span>`;
+    this.button.classList.toggle('active', state === 'active');
+    this.button.classList.toggle('is-pending', state === 'pending');
+    this.button.setAttribute('aria-pressed', String(state === 'active'));
+  }
+
+  showMessage(text, timeout = 5000) {
+    if (!this.message) return;
+    clearTimeout(this.messageTimer);
+    this.message.textContent = text;
+    if (timeout) {
+      this.messageTimer = setTimeout(() => {
+        this.message.textContent = '';
+      }, timeout);
     }
   }
 
-  async toggleWakeLock(btn) {
+  async requestWakeLock() {
+    this.setButtonState('pending');
+
     try {
-      if (!this.wakeLock) {
-        this.wakeLock = await navigator.wakeLock.request('screen');
-        btn.innerHTML = '<svg><use href="#icon-eye"></use></svg><span>Screen stays awake</span>';
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-secondary');
-        btn.classList.add('active');
-        this.wakeLock.addEventListener('release', () => {
-          this.wakeLock = null;
-          btn.innerHTML = '<svg><use href="#icon-eye"></use></svg><span>Keep screen awake</span>';
-          btn.classList.remove('btn-primary');
-          btn.classList.add('btn-secondary');
-          btn.classList.remove('active');
-        });
-      } else {
-        await this.wakeLock.release();
+      this.wakeLock = await navigator.wakeLock.request('screen');
+      this.setButtonState('active');
+      this.showMessage('Screen wake lock is on. Your display will stay awake while this page is visible.', 3500);
+
+      this.wakeLock.addEventListener('release', () => {
         this.wakeLock = null;
-      }
+        if (this.shouldStayAwake && document.visibilityState !== 'visible') {
+          this.setButtonState('paused');
+        } else if (this.shouldStayAwake) {
+          this.shouldStayAwake = false;
+          this.setButtonState('idle');
+          this.showMessage('The browser released the wake lock. Tap the button to try again.', 6000);
+        } else if (!this.shouldStayAwake) {
+          this.setButtonState('idle');
+        }
+      }, { once: true });
     } catch (err) {
+      this.wakeLock = null;
+      this.shouldStayAwake = false;
+      this.setButtonState('idle');
+      const embeddedHint = window.top !== window.self ? ' Open the preview in a new tab and try again.' : '';
+      this.showMessage(`The browser blocked screen wake lock.${embeddedHint}`, 8000);
       console.warn('Wake Lock error:', err);
+    }
+  }
+
+  async toggleWakeLock() {
+    if (this.shouldStayAwake) {
+      this.shouldStayAwake = false;
+      const currentLock = this.wakeLock;
+      this.wakeLock = null;
+      if (currentLock) {
+        await currentLock.release();
+      }
+      this.setButtonState('idle');
+      this.showMessage('Screen wake lock is off.', 2500);
+      return;
+    }
+
+    this.shouldStayAwake = true;
+    await this.requestWakeLock();
+  }
+
+  async handleVisibilityChange() {
+    if (!this.shouldStayAwake) return;
+
+    if (document.visibilityState === 'visible' && !this.wakeLock) {
+      await this.requestWakeLock();
+    } else if (document.visibilityState !== 'visible') {
+      this.setButtonState('paused');
     }
   }
 }
