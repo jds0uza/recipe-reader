@@ -72,21 +72,6 @@ class WebAudioEffects {
     osc.start(now);
     osc.stop(now + 0.4);
   }
-  playClick() {
-    const ctx = this.getContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(480, now);
-    gain.gain.setValueAtTime(0.035, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.06);
-  }
   playAlarm() {
     const ctx = this.getContext();
     if (!ctx) return;
@@ -202,13 +187,13 @@ class SpeechManager {
       if (indicator) indicator.style.display = 'none';
       try {
         this.synth.pause(); // Flushes Chromium audio buffer queue immediately
-      } catch {}
+      } catch { }
       this.synth.cancel();
     }
   }
 }
 
-// --- Browser SpeechRecognition Listener with Echo Cancellation ---
+// --- Browser SpeechRecognition Listener with Memory Management & Inactivity Sleep ---
 class VoiceRecognitionManager {
   constructor(speechManager, onIntent) {
     this.speechManager = speechManager;
@@ -217,122 +202,18 @@ class VoiceRecognitionManager {
     this.isListening = false;
     this.shouldKeepListening = false;
     this.restartTimeout = null;
+    this.inactivityInterval = null;
     this.lastActionTime = 0;
     this.lastActionType = null;
+    this.lastInteractionTime = Date.now();
+    this.INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5-minute auto-shutoff to protect memory & CPU
+    this.rapidRestartCount = 0;
+    this.lastRestartTime = 0;
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRec) {
-      this.recognition = new SpeechRec();
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
+    this.SpeechRec = SpeechRec;
 
-      this.recognition.onstart = () => {
-        this.isListening = true;
-        this.updateUi();
-        const displayEl = document.getElementById('liveTranscriptDisplay');
-        if (displayEl) {
-          displayEl.innerText = 'Listening… Say “Next,” “Repeat,” or “Stop.”';
-        }
-      };
-
-      this.recognition.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const item = event.results[i];
-          const transcript = item[0].transcript.trim();
-          if (!transcript) continue;
-          const displayEl = document.getElementById('liveTranscriptDisplay');
-          
-          let intent = parseVoiceCommand(transcript);
-
-          // If top alternative didn't flag STOP, check other interim alternatives
-          if (intent.action !== 'STOP' && item.length > 1) {
-            for (let a = 1; a < item.length; ++a) {
-              const altIntent = parseVoiceCommand(item[a].transcript);
-              if (altIntent.action === 'STOP') {
-                intent = altIntent;
-                break;
-              }
-            }
-          }
-
-          // 1. High-priority STOP command: interrupts assistant mid-sentence!
-          if (intent.action === 'STOP') {
-            displayEl.innerText = `Heard “${transcript}” — stopping now.`;
-            this.lastActionTime = Date.now();
-            this.lastActionType = 'STOP';
-            this.onIntent(intent);
-            return;
-          }
-
-          // 2. ECHO CANCELLATION: Ignore audio while the computer itself is speaking or echoing
-          if (this.speechManager && (this.speechManager.isSpeaking || Date.now() < this.speechManager.echoDecayUntil)) {
-            console.log(`[Echo Cancellation] Ignored speaker output: "${transcript}"`);
-            return;
-          }
-
-          // 3. COMMAND DEBOUNCE: Prevent rapid multi-firing
-          if (item.isFinal) {
-            const now = Date.now();
-            if (now - this.lastActionTime < 1100 && this.lastActionType === intent.action) {
-              console.log(`[Debounce] Ignored duplicate ${intent.action}`);
-              return;
-            }
-            this.lastActionTime = now;
-            this.lastActionType = intent.action;
-
-            displayEl.innerText = `Heard: "${transcript}"`;
-            this.onIntent(intent);
-          } else {
-            displayEl.innerText = `Listening: "${transcript}..."`;
-          }
-        }
-      };
-
-      this.recognition.onend = () => {
-        if (this.shouldKeepListening) {
-          clearTimeout(this.restartTimeout);
-          this.restartTimeout = setTimeout(() => {
-            if (this.shouldKeepListening) {
-              try { this.recognition.start(); } catch {}
-            }
-          }, 200);
-        } else {
-          this.isListening = false;
-          this.updateUi();
-        }
-      };
-
-      this.recognition.onerror = (err) => {
-        console.warn('Speech recognition error event:', err.error);
-        const micStatus = document.getElementById('micStatusText');
-        const displayEl = document.getElementById('liveTranscriptDisplay');
-
-        if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
-          this.shouldKeepListening = false;
-          this.isListening = false;
-          this.updateUi();
-          if (micStatus) {
-            micStatus.innerText = 'Permission Blocked';
-            micStatus.style.color = 'var(--accent-danger)';
-          }
-          if (displayEl) {
-            if (window.location.protocol === 'file:') {
-              displayEl.innerHTML = '<strong>Speech is disabled on file://</strong><br/>Run <code>npm start</code> and open <a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a>';
-            } else {
-              displayEl.innerHTML = '<strong>Microphone blocked.</strong> Open the site permissions beside the address bar, set Microphone to <strong>Allow</strong>, and reload.';
-            }
-          }
-        } else if (err.error === 'audio-capture') {
-          this.shouldKeepListening = false;
-          this.isListening = false;
-          this.updateUi();
-          if (displayEl) displayEl.innerText = 'No microphone input was detected on this device.';
-        } else if (err.error === 'network') {
-          if (displayEl) displayEl.innerText = 'Speech network error. Retrying…';
-        }
-      };
-    } else {
+    if (!SpeechRec) {
       setTimeout(() => {
         const micStatus = document.getElementById('micStatusText');
         const displayEl = document.getElementById('liveTranscriptDisplay');
@@ -341,14 +222,187 @@ class VoiceRecognitionManager {
           micStatus.style.color = 'var(--accent-danger)';
         }
         if (displayEl) {
-          displayEl.innerHTML = '<strong>Voice recognition is not supported in this browser.</strong><br/>Please use Google Chrome, Safari, or Microsoft Edge.';
+          displayEl.innerHTML = '⚠️ <strong>Web Speech API is not supported in this browser.</strong><br/>Please open <code>http://localhost:3000</code> in <strong>Google Chrome</strong>, <strong>Safari</strong>, or <strong>Edge</strong>.';
         }
       }, 100);
     }
+
+    // 1. Inactivity Watchdog: automatically shut off mic after 5 minutes of silence/inactivity
+    this.inactivityInterval = setInterval(() => {
+      if (this.isListening) {
+        const idleTime = Date.now() - this.lastInteractionTime;
+        if (idleTime > this.INACTIVITY_TIMEOUT_MS) {
+          this.sleep('💤 Mic auto-paused after 5 min of inactivity to save memory. Tap mic or press M to resume.');
+        }
+      }
+    }, 15000);
+
+    // 2. Page Visibility Listener: pause speech recognition when browser tab is minimized or hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.isListening) {
+        this.sleep('💤 Mic paused (tab in background). Tap mic or press M when you return.');
+      }
+    });
+
+    // 3. User interaction listener to reset inactivity watchdog
+    ['click', 'keydown', 'touchstart'].forEach(evt => {
+      window.addEventListener(evt, () => this.bumpActivity(), { passive: true });
+    });
+  }
+
+  bumpActivity() {
+    this.lastInteractionTime = Date.now();
+  }
+
+  createRecognizer() {
+    if (!this.SpeechRec) return null;
+
+    // Fully tear down any previous instance to release Chrome's internal C++ audio buffer
+    if (this.recognition) {
+      try {
+        this.recognition.onstart = null;
+        this.recognition.onresult = null;
+        this.recognition.onerror = null;
+        this.recognition.onend = null;
+        this.recognition.abort();
+      } catch { }
+      this.recognition = null;
+    }
+
+    const rec = new this.SpeechRec();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    rec.onstart = () => {
+      this.isListening = true;
+      this.bumpActivity();
+      this.updateUi();
+      const displayEl = document.getElementById('liveTranscriptDisplay');
+      if (displayEl) {
+        displayEl.innerText = '🎙️ Listening... Say "Next", "Repeat", "Stop"';
+      }
+    };
+
+    rec.onresult = (event) => {
+      this.bumpActivity();
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        const transcript = item[0].transcript.trim();
+        if (!transcript) continue;
+        const displayEl = document.getElementById('liveTranscriptDisplay');
+
+        let intent = parseVoiceCommand(transcript);
+
+        // If top alternative didn't flag STOP, check other interim alternatives
+        if (intent.action !== 'STOP' && item.length > 1) {
+          for (let a = 1; a < item.length; ++a) {
+            const altIntent = parseVoiceCommand(item[a].transcript);
+            if (altIntent.action === 'STOP') {
+              intent = altIntent;
+              break;
+            }
+          }
+        }
+
+        // 1. High-priority STOP command: interrupts assistant mid-sentence!
+        if (intent.action === 'STOP') {
+          displayEl.innerText = `🛑 Heard: "${transcript}" [STOP]`;
+          this.lastActionTime = Date.now();
+          this.lastActionType = 'STOP';
+          this.onIntent(intent);
+          return;
+        }
+
+        // 2. ECHO CANCELLATION: Ignore audio while the computer itself is speaking or echoing
+        if (this.speechManager && (this.speechManager.isSpeaking || Date.now() < this.speechManager.echoDecayUntil)) {
+          console.log(`[Echo Cancellation] Ignored speaker output: "${transcript}"`);
+          return;
+        }
+
+        // 3. COMMAND DEBOUNCE: Prevent rapid multi-firing
+        if (item.isFinal) {
+          const now = Date.now();
+          if (now - this.lastActionTime < 1100 && this.lastActionType === intent.action) {
+            console.log(`[Debounce] Ignored duplicate ${intent.action}`);
+            return;
+          }
+          this.lastActionTime = now;
+          this.lastActionType = intent.action;
+
+          displayEl.innerText = `Heard: "${transcript}"`;
+          this.onIntent(intent);
+        } else {
+          displayEl.innerText = `Listening: "${transcript}..."`;
+        }
+      }
+    };
+
+    rec.onend = () => {
+      if (this.shouldKeepListening) {
+        // Circuit breaker: prevent tight restart spin-loops (max 5 restarts per 5 seconds)
+        const now = Date.now();
+        if (now - this.lastRestartTime < 5000) {
+          this.rapidRestartCount++;
+          if (this.rapidRestartCount > 5) {
+            console.warn('SpeechRecognition rapid restart threshold reached. Pausing.');
+            this.sleep('⚠️ Voice paused due to frequent restarts. Tap mic to resume.');
+            return;
+          }
+        } else {
+          this.rapidRestartCount = 0;
+        }
+        this.lastRestartTime = now;
+
+        clearTimeout(this.restartTimeout);
+        this.restartTimeout = setTimeout(() => {
+          if (this.shouldKeepListening) {
+            // Re-instantiate a fresh recognizer instance to release Chrome's internal memory buffers
+            this.recognition = this.createRecognizer();
+            if (this.recognition) {
+              try { this.recognition.start(); } catch (err) {
+                console.warn('Restart start error:', err);
+              }
+            }
+          }
+        }, 300);
+      } else {
+        this.isListening = false;
+        this.updateUi();
+      }
+    };
+
+    rec.onerror = (err) => {
+      console.warn('Speech recognition error event:', err.error);
+      const micStatus = document.getElementById('micStatusText');
+      const displayEl = document.getElementById('liveTranscriptDisplay');
+
+      if (err.error === 'not-allowed' || err.error === 'service-not-allowed') {
+        this.stop();
+        if (micStatus) {
+          micStatus.innerText = 'Permission Blocked';
+          micStatus.style.color = 'var(--accent-danger)';
+        }
+        if (displayEl) {
+          if (window.location.protocol === 'file:') {
+            displayEl.innerHTML = '⚠️ <strong>Speech disabled on file://</strong><br/>Run <code>npm start</code> and open <a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a>';
+          } else {
+            displayEl.innerHTML = '⚠️ <strong>Microphone Blocked</strong>: Click the tune/lock icon 🔒 next to the URL in your address bar, set Microphone to <strong>"Allow"</strong>, and reload.';
+          }
+        }
+      } else if (err.error === 'audio-capture') {
+        this.stop();
+        if (displayEl) displayEl.innerText = '⚠️ No microphone input detected on your machine.';
+      } else if (err.error === 'network') {
+        if (displayEl) displayEl.innerText = '⚠️ Speech network error. Retrying...';
+      }
+    };
+
+    return rec;
   }
 
   toggle() {
-    if (!this.recognition) {
+    if (!this.SpeechRec) {
       alert('SpeechRecognition is not supported in this browser. You can still test all voice intents using the clickable cheat-sheet buttons!');
       return;
     }
@@ -360,13 +414,14 @@ class VoiceRecognitionManager {
   }
 
   async start() {
+    this.bumpActivity();
     const displayEl = document.getElementById('liveTranscriptDisplay');
     const micStatus = document.getElementById('micStatusText');
 
     // 1. Check browser engine support
-    if (!this.recognition) {
+    if (!this.SpeechRec) {
       const msg = 'Speech recognition is not supported in this browser (e.g. Firefox). Please use Google Chrome, Safari, or Microsoft Edge.';
-      if (displayEl) displayEl.innerText = msg;
+      if (displayEl) displayEl.innerText = `⚠️ ${msg}`;
       alert(msg);
       return;
     }
@@ -374,7 +429,7 @@ class VoiceRecognitionManager {
     // 2. Check if on file:// protocol
     if (window.location.protocol === 'file:') {
       if (displayEl) {
-        displayEl.innerHTML = '<strong>Microphone blocked on file://</strong><br/>Please open <strong><a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a></strong>.';
+        displayEl.innerHTML = '⚠️ <strong>Microphone blocked on file://</strong><br/>Please open via <strong><a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a></strong>';
       }
       alert('Microphone speech recognition is blocked by browser security on file:// URLs.\n\nPlease open http://localhost:3000 in Chrome or Safari.');
       return;
@@ -390,7 +445,7 @@ class VoiceRecognitionManager {
             micStatus.style.color = 'var(--accent-danger)';
           }
           if (displayEl) {
-            displayEl.innerHTML = '<strong>Microphone blocked in browser.</strong><br/>Open the site permissions beside the address bar, change Microphone from “Block” to “Allow,” then refresh.';
+            displayEl.innerHTML = '⚠️ <strong>Microphone Blocked in Browser</strong><br/>Click the tune/lock icon 🔒 to the left of the URL bar and change Microphone from "Block" to "Allow", then refresh.';
           }
           alert('Microphone access is currently Blocked for localhost.\n\nTo fix:\n1. Click the icon directly to the left of "localhost:3000" in the address bar.\n2. Toggle Microphone to "Allow".\n3. Refresh the page.');
           return;
@@ -400,33 +455,61 @@ class VoiceRecognitionManager {
       }
     }
 
-    // 4. Start SpeechRecognition directly (this natively invokes the browser prompt)
+    // 4. Start fresh SpeechRecognition instance
     this.shouldKeepListening = true;
-    try {
-      this.recognition.start();
-      this.isListening = true;
-      this.updateUi();
-      if (displayEl) displayEl.innerText = 'Requesting mic access...';
-    } catch (e) {
-      console.warn('SpeechRecognition start error:', e);
-      if (e.name === 'InvalidStateError') {
-        // Already started
+    this.rapidRestartCount = 0;
+    this.recognition = this.createRecognizer();
+    if (this.recognition) {
+      try {
+        this.recognition.start();
         this.isListening = true;
         this.updateUi();
-      } else {
-        if (displayEl) displayEl.innerText = `Recognition failed: ${e.message || e.name}`;
+        if (displayEl) displayEl.innerText = 'Requesting mic access...';
+      } catch (e) {
+        console.warn('SpeechRecognition start error:', e);
+        if (e.name === 'InvalidStateError') {
+          this.isListening = true;
+          this.updateUi();
+        } else {
+          if (displayEl) displayEl.innerText = `⚠️ Recognition failed: ${e.message || e.name}`;
+        }
       }
+    }
+  }
+
+  sleep(reasonText) {
+    this.stop();
+    const micStatus = document.getElementById('micStatusText');
+    const displayEl = document.getElementById('liveTranscriptDisplay');
+    const micHint = document.getElementById('micHintText');
+    if (micStatus) {
+      micStatus.innerText = 'Sleeping (Inactive)';
+      micStatus.style.color = 'var(--text-muted)';
+    }
+    if (micHint) {
+      micHint.innerText = '👉 Tap mic or press M to wake';
+    }
+    if (displayEl && reasonText) {
+      displayEl.innerText = reasonText;
     }
   }
 
   stop() {
     this.shouldKeepListening = false;
     clearTimeout(this.restartTimeout);
-    if (this.recognition && this.isListening) {
-      try { this.recognition.stop(); } catch {}
-      this.isListening = false;
-      this.updateUi();
+    this.rapidRestartCount = 0;
+    if (this.recognition) {
+      try {
+        this.recognition.onstart = null;
+        this.recognition.onresult = null;
+        this.recognition.onerror = null;
+        this.recognition.onend = null;
+        this.recognition.abort();
+      } catch { }
+      this.recognition = null;
     }
+    this.isListening = false;
+    this.updateUi();
   }
 
   updateUi() {
@@ -436,14 +519,14 @@ class VoiceRecognitionManager {
 
     if (this.isListening) {
       micBtn.classList.add('active');
-      micStatus.classList.add('is-active');
-      micStatus.innerText = 'Listening';
-      if (micHint) micHint.innerText = 'Pause microphone';
+      micStatus.innerText = 'Listening Continuously';
+      micStatus.style.color = 'var(--accent-secondary)';
+      if (micHint) micHint.innerText = 'Tap mic to pause listening';
     } else {
       micBtn.classList.remove('active');
-      micStatus.classList.remove('is-active');
-      micStatus.innerText = 'Mic off';
-      if (micHint) micHint.innerText = 'Turn on microphone';
+      micStatus.innerText = 'Mic Inactive';
+      micStatus.style.color = 'var(--text-muted)';
+      if (micHint) micHint.innerText = 'Tap mic to start listening';
     }
   }
 }
@@ -520,15 +603,15 @@ class RecipeApp {
 
         // 1. Origin & Protocol check
         const isFile = window.location.protocol === 'file:';
-        diagBox.innerHTML += `• Protocol: <code>${window.location.protocol}//</code> ${isFile ? '<strong style="color:var(--accent-danger)">Blocked on file:// (run npm start and open http://localhost:3000)</strong>' : '<strong style="color:var(--accent-secondary)">Valid web origin</strong>'}<br/>`;
+        diagBox.innerHTML += `• Protocol: <code>${window.location.protocol}//</code> ${isFile ? '<strong style="color:var(--accent-danger)">❌ BLOCKED on file:// (Must run npm start & open http://localhost:3000)</strong>' : '<strong style="color:var(--accent-secondary)">✅ OK (Valid Web Origin)</strong>'}<br/>`;
 
         // 2. Web Speech Recognition API check
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        diagBox.innerHTML += `• Speech engine: ${SpeechRec ? '<strong style="color:var(--accent-secondary)">SpeechRecognition available</strong>' : '<strong style="color:var(--accent-danger)">Missing or unsupported</strong>'}<br/>`;
+        diagBox.innerHTML += `• Speech Engine: ${SpeechRec ? '<strong style="color:var(--accent-secondary)">✅ SpeechRecognition Available</strong>' : '<strong style="color:var(--accent-danger)">❌ Missing (Firefox/Unsupported)</strong>'}<br/>`;
 
         // 3. MediaDevices API
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          diagBox.innerHTML += `• Audio devices API: <strong style="color:var(--accent-danger)">navigator.mediaDevices is unavailable</strong><br/>`;
+          diagBox.innerHTML += `• Audio Devices API: <strong style="color:var(--accent-danger)">❌ navigator.mediaDevices is undefined</strong><br/>`;
           return;
         }
 
@@ -548,18 +631,18 @@ class RecipeApp {
           diagBox.innerHTML += `• Requesting <code>getUserMedia({ audio: true })</code>...<br/>`;
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const track = stream.getAudioTracks()[0];
-          diagBox.innerHTML += `• Audio device: <strong style="color:var(--accent-secondary)">${track ? track.label || 'Default microphone' : 'Active'}</strong><br/>`;
+          diagBox.innerHTML += `• Audio Device: <strong style="color:var(--accent-secondary)">✅ ${track ? track.label || 'Default Microphone' : 'Active'}</strong><br/>`;
           track.stop();
-          diagBox.innerHTML += `<strong style="color:var(--accent-secondary)">Permission granted. Starting voice recognition…</strong><br/>`;
+          diagBox.innerHTML += `<strong style="color:var(--accent-secondary)">🎉 Permission GRANTED! Starting voice recognition now...</strong><br/>`;
           this.voiceRecognition.start();
         } catch (err) {
           console.error('Diagnostic mic error:', err);
           diagBox.innerHTML += `• Browser Result: <strong style="color:var(--accent-danger)">${err.name}</strong> - ${err.message}<br/>`;
 
           if (err.name === 'NotAllowedError') {
-            diagBox.innerHTML += `<br/><strong>How to unblock:</strong><br/>1. Open the site permissions beside <strong>localhost:3000</strong>.<br/>2. Switch <strong>Microphone</strong> from <em>Block</em> to <strong>Allow</strong>.<br/>3. Refresh the page.`;
+            diagBox.innerHTML += `<br/>👉 <strong>HOW TO UNBLOCK:</strong><br/>1. Look at the top of your browser directly to the left of <strong>localhost:3000</strong>.<br/>2. Click the <strong>tune / sliders icon 🔒</strong> in the address bar.<br/>3. Switch <strong>Microphone</strong> from <em>Block</em> to <strong>Allow</strong>.<br/>4. Refresh the page ($⌘+R$).`;
           } else if (err.name === 'NotFoundError') {
-            diagBox.innerHTML += `<br/><strong>How to fix:</strong> No microphone input device was detected. Plug in a microphone or select one in your system settings.`;
+            diagBox.innerHTML += `<br/>👉 <strong>HOW TO FIX:</strong> No microphone input device was detected on your machine. Please plug in or select a microphone in macOS System Settings.`;
           }
         }
       });
@@ -717,9 +800,9 @@ class RecipeApp {
         this.speech.stop();
         this.status = 'AWAITING_INPUT';
         document.getElementById('stateStatusBadge').innerText = 'AWAITING_INPUT';
-        this.recordAudit(`Stopped speaking (voice: "${intent.rawTranscript}")`);
+        this.recordAudit(`🛑 Stopped speaking (Voice: "${intent.rawTranscript}")`);
         const liveEl = document.getElementById('liveTranscriptDisplay');
-        if (liveEl) liveEl.innerText = 'Stopped. Ready for your next command.';
+        if (liveEl) liveEl.innerText = '🛑 Stopped. Ready for next command.';
         break;
       case 'NEXT_STEP':
         this.next_step();
@@ -793,12 +876,12 @@ class RecipeApp {
       stepCounterEl.innerText = `Ready • ${this.recipe.steps.length} Steps Total`;
       instructionEl.innerText = `Click "Next Step" or say "Next" to begin Step 1.`;
       progressBar.style.width = '0%';
-      document.getElementById('btnNextStep').innerHTML = '<span>Start recipe</span><svg><use href="#icon-forward"></use></svg>';
+      document.getElementById('btnNextStep').innerText = 'Start Recipe ➡';
     } else if (this.status === 'COMPLETED') {
-      stepCounterEl.innerText = 'Recipe complete';
-      instructionEl.innerHTML = `<div class="completed-banner"><h2>All done.</h2><p>You have finished making ${this.recipe.title}. Enjoy your meal.</p></div>`;
+      stepCounterEl.innerText = 'Completed! 🎉';
+      instructionEl.innerHTML = `<div class="completed-banner"><h2>All Done! 👨‍🍳</h2><p>You have finished making ${this.recipe.title}. Enjoy!</p></div>`;
       progressBar.style.width = '100%';
-      document.getElementById('btnNextStep').innerHTML = '<span>Cook again</span><svg><use href="#icon-repeat"></use></svg>';
+      document.getElementById('btnNextStep').innerText = 'Restart 🔄';
     } else {
       const step = this.recipe.steps[this.currentStepIndex];
       stepCounterEl.innerText = `Step ${step.id} of ${this.recipe.steps.length}`;
@@ -807,9 +890,8 @@ class RecipeApp {
       const pct = Math.round(((this.currentStepIndex + 1) / this.recipe.steps.length) * 100);
       progressBar.style.width = `${pct}%`;
 
-      document.getElementById('btnNextStep').innerHTML = this.currentStepIndex === this.recipe.steps.length - 1
-        ? '<span>Finish recipe</span><svg><use href="#icon-forward"></use></svg>'
-        : '<span>Next step</span><svg><use href="#icon-forward"></use></svg>';
+      document.getElementById('btnNextStep').innerText =
+        this.currentStepIndex === this.recipe.steps.length - 1 ? 'Finish Recipe 🏆' : 'Next Step ➡';
     }
   }
 
@@ -941,109 +1023,39 @@ class RecipeApp {
 class ScreenWakeLockManager {
   constructor() {
     this.wakeLock = null;
-    this.shouldStayAwake = false;
-    this.button = document.getElementById('btnWakeLock');
-    this.message = document.getElementById('wakeLockMessage');
     this.init();
   }
 
   init() {
-    if (!this.button) return;
-
-    if (!('wakeLock' in navigator)) {
-      this.button.disabled = true;
-      this.button.title = 'Screen wake lock is not supported by this browser';
-      this.setButtonState('unavailable');
-      this.showMessage('This browser does not support keeping the screen awake.');
-      return;
-    }
-
-    this.button.addEventListener('click', () => this.toggleWakeLock());
-    document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
-  }
-
-  setButtonState(state) {
-    if (!this.button) return;
-
-    const labels = {
-      idle: 'Keep screen awake',
-      pending: 'Turning on…',
-      active: 'Screen stays awake',
-      paused: 'Wake lock paused',
-      unavailable: 'Wake lock unavailable'
-    };
-
-    this.button.innerHTML = `<svg><use href="#icon-eye"></use></svg><span>${labels[state]}</span>`;
-    this.button.classList.toggle('active', state === 'active');
-    this.button.classList.toggle('is-pending', state === 'pending');
-    this.button.setAttribute('aria-pressed', String(state === 'active'));
-  }
-
-  showMessage(text, timeout = 5000) {
-    if (!this.message) return;
-    clearTimeout(this.messageTimer);
-    this.message.textContent = text;
-    if (timeout) {
-      this.messageTimer = setTimeout(() => {
-        this.message.textContent = '';
-      }, timeout);
-    }
-  }
-
-  async requestWakeLock() {
-    this.setButtonState('pending');
-
-    try {
-      this.wakeLock = await navigator.wakeLock.request('screen');
-      this.setButtonState('active');
-      this.showMessage('Screen wake lock is on. Your display will stay awake while this page is visible.', 3500);
-
-      this.wakeLock.addEventListener('release', () => {
-        this.wakeLock = null;
-        if (this.shouldStayAwake && document.visibilityState !== 'visible') {
-          this.setButtonState('paused');
-        } else if (this.shouldStayAwake) {
-          this.shouldStayAwake = false;
-          this.setButtonState('idle');
-          this.showMessage('The browser released the wake lock. Tap the button to try again.', 6000);
-        } else if (!this.shouldStayAwake) {
-          this.setButtonState('idle');
-        }
-      }, { once: true });
-    } catch (err) {
-      this.wakeLock = null;
-      this.shouldStayAwake = false;
-      this.setButtonState('idle');
-      const embeddedHint = window.top !== window.self ? ' Open the preview in a new tab and try again.' : '';
-      this.showMessage(`The browser blocked screen wake lock.${embeddedHint}`, 8000);
-      console.warn('Wake Lock error:', err);
-    }
-  }
-
-  async toggleWakeLock() {
-    if (this.shouldStayAwake) {
-      this.shouldStayAwake = false;
-      const currentLock = this.wakeLock;
-      this.wakeLock = null;
-      if (currentLock) {
-        await currentLock.release();
+    const wakeLockBtn = document.getElementById('btnWakeLock');
+    if (wakeLockBtn) {
+      if ('wakeLock' in navigator) {
+        wakeLockBtn.addEventListener('click', () => this.toggleWakeLock(wakeLockBtn));
+      } else {
+        wakeLockBtn.style.display = 'none'; // Unsupported browser
       }
-      this.setButtonState('idle');
-      this.showMessage('Screen wake lock is off.', 2500);
-      return;
     }
-
-    this.shouldStayAwake = true;
-    await this.requestWakeLock();
   }
 
-  async handleVisibilityChange() {
-    if (!this.shouldStayAwake) return;
-
-    if (document.visibilityState === 'visible' && !this.wakeLock) {
-      await this.requestWakeLock();
-    } else if (document.visibilityState !== 'visible') {
-      this.setButtonState('paused');
+  async toggleWakeLock(btn) {
+    try {
+      if (!this.wakeLock) {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+        btn.innerText = '👁️ Keep Awake: ON';
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-secondary');
+        this.wakeLock.addEventListener('release', () => {
+          this.wakeLock = null;
+          btn.innerText = '👁️ Keep Awake: Off';
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-secondary');
+        });
+      } else {
+        await this.wakeLock.release();
+        this.wakeLock = null;
+      }
+    } catch (err) {
+      console.warn('Wake Lock error:', err);
     }
   }
 }

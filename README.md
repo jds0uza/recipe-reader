@@ -1,6 +1,6 @@
-# 👩‍🍳 SousChef: Deterministic Recipe Voice State Machine
+# 👩‍🍳 SousChef: Recipe Reader
 
-> **An offline-first, deterministic state machine and hands-free voice interface for kitchen recipe navigation.**  
+> **An hands-free voice interface for kitchen recipe navigation.**  
 > Built as an audio-first engineering showcase with swappable TTS/STT providers—running with native browser speech synthesis today, architected for ElevenLabs streaming voice integration.
 
 [![Tests](https://img.shields.io/badge/tests-43%20passing-brightgreen.svg)](file:///Users/jdsouza/aifun/recipe%20reader/test)
@@ -15,8 +15,9 @@
 Kitchen environments present unique challenges for conversational voice assistants:
 1. **Messy hands & distance:** Users stand 3–6 feet away from the screen; navigation must be 100% hands-free and resilient to ambient kitchen noise.
 2. **Deterministic state guarantees:** Cooking recipes are sequential workflows. The assistant must never hallucinate steps, lose track of current instructions, or skip prerequisites.
-3. **Echo cancellation & feedback immunity:** Speech synthesizers can trigger microphone feedback loops if the assistant hears its own voice. SousChef implements active speech suppression with post-utterance decay and instant voice interrupts.
-4. **Lightweight, offline-first reliability:** Zero external npm dependencies. Everything runs natively using modern Web APIs and Node 24 native TypeScript execution.
+3. **Echo cancellation & feedback immunity:** Speech synthesizers can trigger microphone feedback loops if the assistant hears its own voice. SousChef implements active speech suppression with post-utterance decay, multi-alternative interim matching, and instant barge-in voice interrupts.
+4. **Memory stability for long-running kitchen sessions:** Voice assistants left open on countertops must never leak memory. SousChef implements active recognizer recycling, background tab visibility throttling, and a 5-minute inactivity watchdog.
+5. **Lightweight, offline-first reliability:** Zero external npm dependencies. Everything runs natively using modern Web APIs and Node 24 native TypeScript execution.
 
 ---
 
@@ -78,6 +79,32 @@ stateDiagram-v2
   - `TTSProvider` and `STTProvider` interfaces.
   - Active offline implementation: `window.speechSynthesis` and `window.SpeechRecognition`.
   - Ready-to-use adapter: `ElevenLabsTTSAdapter` conforming to ElevenLabs streaming REST and WebSocket contracts.
+
+---
+
+## 🛡️ Production Voice Hardening & Memory Architecture
+
+Real-world hands-free kitchen voice interfaces present acute edge cases that simple prototypes overlook. SousChef solves four core voice lifecycle and stability challenges:
+
+### 1. Chromium Speech Recognition Memory Leak Mitigation
+- **The Issue:** In Chromium-based browsers, running `SpeechRecognition` in `continuous = true` mode over multi-hour sessions delegates audio streaming to Chrome's native `Utility: Speech Recognition Service`. Because browsers force-terminate recognition after periods of silence, naive implementations restart the session in an infinite loop (`onend -> start()`). Re-invoking `.start()` on the same dirty instance leaks C++ audio buffers in native memory, compounding to tens of gigabytes over 24+ hours.
+- **The Solution:** On each session restart, SousChef completely detaches native event handlers (`onresult`, `onend`, `onerror`), explicitly calls `.abort()`, nullifies the reference, and instantiates a clean `SpeechRecognition` object. This enables V8 and Chromium's IPC bridge to completely sweep prior audio buffers.
+
+### 2. Inactivity Watchdog (5-Minute Auto-Sleep)
+- **The Issue:** Kitchen devices are often left unattended for hours or days after cooking.
+- **The Solution:** A background inactivity watchdog monitors timestamps across voice commands, UI clicks, and keypresses. If no interaction occurs for **5 minutes**, the voice pipeline cleanly stops audio capture and enters low-power sleep mode (`💤 Mic auto-paused`), eliminating idle memory and battery drain.
+
+### 3. Background Tab Visibility Throttling
+- **The Issue:** Browsers keep recording audio even when the tab is hidden, wasting bandwidth and memory while surprising users.
+- **The Solution:** Hooks into `document.visibilitychange`. If the user minimizes Chrome, switches tabs, or locks their machine, audio capture immediately terminates and enters sleep until manually awakened.
+
+### 4. Barge-In Interrupts & Blended Audio Detection
+- **The Issue:** When an assistant reads steps through laptop speakers, the microphone captures a blended acoustic stream (e.g. speaker says *"degrees"* + user says *"stop"* $\rightarrow$ Chrome transcribes *"degrees stop"*). Strict regex matching (`^stop$`) fails, dropping the interrupt.
+- **The Solution:**
+  - Priority #1 routing: Evaluates `STOP` intent **before** echo-suppression filters.
+  - Word-boundary matching: Regex `\b(stop|pause|quiet|silence|halt)\b` catches interrupts even when surrounded by speaker bleed or conversational prefixes.
+  - Multi-alternative hypothesis scanning: Scans interim recognition alternatives so that if "stop" appears as a secondary hypothesis against loud speaker output, speech synthesis is halted immediately.
+  - Audio buffer flush: Invokes `synth.pause()` immediately before `synth.cancel()` to force Chromium's audio thread to dump buffered audio without latency.
 
 ---
 
