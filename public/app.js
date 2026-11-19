@@ -1137,7 +1137,7 @@ class RecipeApp {
     const textToSpeak = `Step ${step.id}. ${expandTextForSpeech(step.instruction)}`;
     this.speech.speak(textToSpeak, () => {
       this.status = 'AWAITING_INPUT';
-      document.getElementById('stateStatusBadge').innerText = 'AWAITING_INPUT';
+      this.updateStatusBadge();
     });
   }
 
@@ -1148,7 +1148,7 @@ class RecipeApp {
       case 'STOP':
         this.speech.stop();
         this.status = 'AWAITING_INPUT';
-        document.getElementById('stateStatusBadge').innerText = 'AWAITING_INPUT';
+        this.updateStatusBadge();
         this.recordAudit(`🛑 Stopped speaking (Voice: "${intent.rawTranscript}")`);
         const liveEl = document.getElementById('liveTranscriptDisplay');
         if (liveEl) liveEl.innerText = '🛑 Stopped. Ready for next command.';
@@ -1179,6 +1179,19 @@ class RecipeApp {
     }
   }
 
+  updateStatusBadge(status = this.status) {
+    const badge = document.getElementById('stateStatusBadge');
+    if (!badge) return;
+    const labels = {
+      'IDLE': 'Ready',
+      'READY': 'Ready',
+      'READING_STEP': 'Reading step',
+      'AWAITING_INPUT': 'Listening for commands',
+      'COMPLETED': 'Finished'
+    };
+    badge.innerText = labels[status] || status;
+  }
+
   // --- Rendering UI Updates ---
   render() {
     if (!this.recipe) return;
@@ -1197,7 +1210,7 @@ class RecipeApp {
     }
 
     document.getElementById('servingsDisplay').innerText = `${this.recipe.currentServings} Servings`;
-    document.getElementById('stateStatusBadge').innerText = this.status;
+    this.updateStatusBadge();
 
     // Render Ingredients List
     const ingListEl = document.getElementById('ingredientsList');

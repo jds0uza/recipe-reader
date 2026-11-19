@@ -280,17 +280,16 @@ main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
 
 .step-topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
 .section-kicker { color: var(--ink-faint); }
-.step-counter { color: var(--forest); font-size: 0.92rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.step-counter { color: var(--forest); font-size: 0.92rem; font-weight: 700; letter-spacing: 0.02em; }
 .status-cluster { display: flex; gap: 0.45rem; align-items: center; }
 .status-pill, .count-badge {
   padding: 0.35rem 0.65rem;
   color: var(--forest);
   background: var(--forest-pale);
   border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .speaking-pill { display: none; align-items: center; gap: 0.35rem; color: #7b4723; background: #f5e8c9; }
 .speaking-pill svg { width: 0.9rem; height: 0.9rem; }
