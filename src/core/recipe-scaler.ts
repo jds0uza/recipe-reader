@@ -91,55 +91,184 @@ export function parseQuantity(str: string): number | null {
 }
 
 /**
+ * Decodes standard and numeric HTML entities
+ */
+export function cleanHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+/**
+ * Strips matching outer parentheses safely using depth tracking
+ */
+function stripOuterParens(text: string): string {
+  let s = text.trim();
+  let changed = true;
+  while (changed && s.startsWith('(') && s.endsWith(')')) {
+    let depth = 0;
+    let matchedEnd = false;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '(') depth++;
+      else if (s[i] === ')') {
+        depth--;
+        if (depth === 0) {
+          if (i === s.length - 1) matchedEnd = true;
+          break;
+        }
+      }
+    }
+    if (matchedEnd) {
+      s = s.slice(1, -1).trim();
+    } else {
+      changed = false;
+    }
+  }
+  return s;
+}
+
+/**
+ * Strips outer brackets and common leading punctuation from ingredient notes
+ */
+function cleanIngredientNotes(notes?: string): string | undefined {
+  if (!notes) return undefined;
+  let s = stripOuterParens(notes);
+  // Remove leading comma, dash, colon, or semicolon (e.g. ", or olive oil", "- for colour")
+  s = s.replace(/^[,;:\-\s]+/, '').trim();
+  s = stripOuterParens(s);
+  return s || undefined;
+}
+
+/**
+ * Detects and extracts trailing parenthetical notes from an ingredient string,
+ * scanning backward from the final ')' to correctly handle nested parens and double brackets.
+ */
+function extractTrailingParenthetical(str: string): { name: string; notes: string } | null {
+  const s = str.trim();
+  if (!s.endsWith(')')) return null;
+
+  let depth = 0;
+  for (let i = s.length - 1; i >= 0; i--) {
+    if (s[i] === ')') depth++;
+    else if (s[i] === '(') {
+      depth--;
+      if (depth === 0) {
+        let startIdx = i;
+        while (startIdx > 0 && (s[startIdx - 1] === '(' || (s[startIdx - 1] === ' ' && startIdx > 1 && s[startIdx - 2] === '('))) {
+          startIdx--;
+        }
+        return {
+          name: s.slice(0, startIdx).trim(),
+          notes: s.slice(startIdx).trim()
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Parses a raw ingredient line into structured Ingredient object
  */
 export function parseIngredient(rawText: string, id: string = `ing-${Math.random().toString(36).substr(2, 9)}`): Ingredient {
-  const clean = rawText.trim();
+  const clean = cleanHtmlEntities(rawText).trim();
   if (!clean) {
     return { id, raw: rawText, name: rawText, quantity: null, unit: null };
   }
 
-  // Match leading quantity: decimals, fractions, unicode fractions, mixed numbers
-  // e.g. "1 1/2 cups flour", "½ tsp salt", "2.5 lbs chicken", "salt and pepper to taste"
-  const qtyRegex = /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*/i;
-  const qtyMatch = clean.match(qtyRegex);
+  // 1. Dual measurement support (e.g. '500 g/ 1 lb pork mince', '30g / 2 tbsp butter')
+  const dualMeasureRegex = /^(\d+(?:\.\d+)?|\d+\/\d+|\d+\s+\d+\/\d+)\s*([a-z]+)\s*\/\s*(\d+(?:\.\d+)?|\d+\/\d+|\d+\s+\d+\/\d+)\s*([a-z]+)\s+(.*)/i;
+  const dualMatch = clean.match(dualMeasureRegex);
 
   let quantity: number | null = null;
+  let unit: string | null = null;
   let remaining = clean;
 
-  if (qtyMatch) {
-    quantity = parseQuantity(qtyMatch[1].trim());
-    remaining = clean.slice(qtyMatch[0].length).trim();
-  }
+  if (dualMatch) {
+    quantity = parseQuantity(dualMatch[1]);
+    const unit1 = dualMatch[2].toLowerCase();
+    const unit2 = dualMatch[4].toLowerCase();
+    unit = `${unit1} / ${dualMatch[3]} ${unit2}`;
+    remaining = dualMatch[5].trim();
+  } else {
+    // 2. Quantity range: e.g. '1/4 - 1/2 tsp' or '1 - 2 cloves'
+    const rangeRegex = /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*[-–—]\s*((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*/i;
+    const rangeMatch = remaining.match(rangeRegex);
 
-  // Match unit
-  let unit: string | null = null;
-  const unitMatch = remaining.match(/^([a-z]+(?:\s+[a-z]+)?)\b/i);
-  if (unitMatch) {
-    const candidateUnit = unitMatch[1].toLowerCase();
-    const matched = COMMON_UNITS.find(u => u === candidateUnit || candidateUnit.startsWith(u + ' '));
-    if (matched) {
-      unit = matched;
-      remaining = remaining.slice(unit.length).trim();
-      // Remove leading "of" if present, e.g. "1 cup of milk"
-      if (remaining.toLowerCase().startsWith('of ')) {
-        remaining = remaining.slice(3).trim();
+    if (rangeMatch) {
+      quantity = parseQuantity(rangeMatch[2]);
+      remaining = remaining.slice(rangeMatch[0].length).trim();
+    } else {
+      // 3. Single leading quantity
+      const qtyRegex = /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*/i;
+      const qtyMatch = remaining.match(qtyRegex);
+
+      if (qtyMatch) {
+        quantity = parseQuantity(qtyMatch[1].trim());
+        remaining = remaining.slice(qtyMatch[0].length).trim();
+      }
+    }
+
+    // Match unit
+    const unitMatch = remaining.match(/^([a-z]+(?:\s+[a-z]+)?)\b/i);
+    if (unitMatch) {
+      const candidateUnit = unitMatch[1].toLowerCase();
+      const matched = COMMON_UNITS.find(u => u === candidateUnit || candidateUnit.startsWith(u + ' '));
+      if (matched) {
+        unit = matched;
+        remaining = remaining.slice(unit.length).trim();
+        if (remaining.toLowerCase().startsWith('of ')) {
+          remaining = remaining.slice(3).trim();
+        }
       }
     }
   }
 
-  // Check for notes in parentheses or after comma
+  // 4. Extract name and notes
+  let candidateName = remaining;
   let notes: string | undefined;
-  if (remaining.includes(',')) {
-    const parts = remaining.split(',');
-    remaining = parts[0].trim();
-    notes = parts.slice(1).join(',').trim();
+
+  // Check for trailing parenthetical first (handles nested parens and double brackets without splitting commas inside them)
+  const trailingParen = extractTrailingParenthetical(remaining);
+  if (trailingParen) {
+    candidateName = trailingParen.name;
+    notes = cleanIngredientNotes(trailingParen.notes);
+  } else if (remaining.includes(',')) {
+    // If no trailing parenthetical, split by the first comma that is outside of any parentheses
+    let commaIdx = -1;
+    let depth = 0;
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i] === '(') depth++;
+      else if (remaining[i] === ')') depth = Math.max(0, depth - 1);
+      else if (remaining[i] === ',' && depth === 0) {
+        commaIdx = i;
+        break;
+      }
+    }
+
+    if (commaIdx !== -1) {
+      candidateName = remaining.slice(0, commaIdx);
+      notes = cleanIngredientNotes(remaining.slice(commaIdx + 1));
+    }
+  }
+
+  // Strip trailing/leading punctuation or dangling parens from candidateName
+  let finalName = candidateName.replace(/[,;:\-\s(]+$/, '').replace(/^[\s(]+/, '').trim();
+  if (!finalName) {
+    finalName = clean;
   }
 
   return {
     id,
     raw: rawText,
-    name: remaining || clean,
+    name: finalName,
     quantity,
     unit,
     notes
@@ -186,6 +315,187 @@ export function formatQuantityFraction(qty: number): string {
   return (Math.round(qty * 100) / 100).toString();
 }
 
+export const UNIT_EXPANSIONS: Record<string, { singular: string; plural: string }> = {
+  tsp: { singular: 'teaspoon', plural: 'teaspoons' },
+  ts: { singular: 'teaspoon', plural: 'teaspoons' },
+  teaspoon: { singular: 'teaspoon', plural: 'teaspoons' },
+  teaspoons: { singular: 'teaspoon', plural: 'teaspoons' },
+
+  tbsp: { singular: 'tablespoon', plural: 'tablespoons' },
+  tbs: { singular: 'tablespoon', plural: 'tablespoons' },
+  tb: { singular: 'tablespoon', plural: 'tablespoons' },
+  tablespoon: { singular: 'tablespoon', plural: 'tablespoons' },
+  tablespoons: { singular: 'tablespoon', plural: 'tablespoons' },
+
+  c: { singular: 'cup', plural: 'cups' },
+  cup: { singular: 'cup', plural: 'cups' },
+  cups: { singular: 'cup', plural: 'cups' },
+
+  oz: { singular: 'ounce', plural: 'ounces' },
+  ounce: { singular: 'ounce', plural: 'ounces' },
+  ounces: { singular: 'ounce', plural: 'ounces' },
+
+  'fl oz': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fl. oz': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fl oz.': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fluid ounce': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fluid ounces': { singular: 'fluid ounce', plural: 'fluid ounces' },
+
+  lb: { singular: 'pound', plural: 'pounds' },
+  lbs: { singular: 'pound', plural: 'pounds' },
+  pound: { singular: 'pound', plural: 'pounds' },
+  pounds: { singular: 'pound', plural: 'pounds' },
+
+  g: { singular: 'gram', plural: 'grams' },
+  gram: { singular: 'gram', plural: 'grams' },
+  grams: { singular: 'gram', plural: 'grams' },
+
+  kg: { singular: 'kilogram', plural: 'kilograms' },
+  kgs: { singular: 'kilogram', plural: 'kilograms' },
+  kilogram: { singular: 'kilogram', plural: 'kilograms' },
+  kilograms: { singular: 'kilogram', plural: 'kilograms' },
+
+  ml: { singular: 'milliliter', plural: 'milliliters' },
+  milliliter: { singular: 'milliliter', plural: 'milliliters' },
+  milliliters: { singular: 'milliliter', plural: 'milliliters' },
+
+  l: { singular: 'liter', plural: 'liters' },
+  liter: { singular: 'liter', plural: 'liters' },
+  liters: { singular: 'liter', plural: 'liters' },
+
+  pt: { singular: 'pint', plural: 'pints' },
+  pint: { singular: 'pint', plural: 'pints' },
+  pints: { singular: 'pint', plural: 'pints' },
+
+  qt: { singular: 'quart', plural: 'quarts' },
+  quart: { singular: 'quart', plural: 'quarts' },
+  quarts: { singular: 'quart', plural: 'quarts' },
+
+  gal: { singular: 'gallon', plural: 'gallons' },
+  gallon: { singular: 'gallon', plural: 'gallons' },
+  gallons: { singular: 'gallon', plural: 'gallons' },
+
+  pinch: { singular: 'pinch', plural: 'pinches' },
+  pinches: { singular: 'pinch', plural: 'pinches' },
+
+  dash: { singular: 'dash', plural: 'dashes' },
+  dashes: { singular: 'dash', plural: 'dashes' },
+
+  clove: { singular: 'clove', plural: 'cloves' },
+  cloves: { singular: 'clove', plural: 'cloves' },
+
+  slice: { singular: 'slice', plural: 'slices' },
+  slices: { singular: 'slice', plural: 'slices' },
+
+  piece: { singular: 'piece', plural: 'pieces' },
+  pieces: { singular: 'piece', plural: 'pieces' },
+
+  sprig: { singular: 'sprig', plural: 'sprigs' },
+  sprigs: { singular: 'sprig', plural: 'sprigs' },
+
+  stalk: { singular: 'stalk', plural: 'stalks' },
+  stalks: { singular: 'stalk', plural: 'stalks' },
+
+  can: { singular: 'can', plural: 'cans' },
+  cans: { singular: 'can', plural: 'cans' },
+
+  pkg: { singular: 'package', plural: 'packages' },
+  pkgs: { singular: 'package', plural: 'packages' },
+  package: { singular: 'package', plural: 'packages' },
+  packages: { singular: 'package', plural: 'packages' },
+
+  bunch: { singular: 'bunch', plural: 'bunches' },
+  bunches: { singular: 'bunch', plural: 'bunches' },
+
+  head: { singular: 'head', plural: 'heads' },
+  heads: { singular: 'head', plural: 'heads' },
+};
+
+/**
+ * Normalizes unit abbreviations to their full spoken singular or plural form for TTS
+ */
+export function formatUnitForVoice(unit: string | null | undefined, quantity: number | null): string {
+  if (!unit) return '';
+  const trimmed = unit.trim();
+  if (!trimmed) return '';
+
+  const isPlural = quantity !== null && quantity > 1;
+
+  if (trimmed === 'T') {
+    return isPlural ? 'tablespoons' : 'tablespoon';
+  }
+  if (trimmed === 't') {
+    return isPlural ? 'teaspoons' : 'teaspoon';
+  }
+
+  const cleanUnit = trimmed.toLowerCase().replace(/\.+$/, '');
+  const match = UNIT_EXPANSIONS[cleanUnit];
+  if (match) {
+    return isPlural ? match.plural : match.singular;
+  }
+
+  return trimmed;
+}
+
+/**
+ * Expands fractions and common unit abbreviations in arbitrary text (e.g. step instructions) for natural TTS
+ */
+export function expandTextForSpeech(text: string): string {
+  if (!text) return '';
+
+  let result = text;
+
+  // 1. Expand fractions
+  const fractionReplacements: [RegExp, string][] = [
+    [/\b1\/8\b/g, 'one eighth'],
+    [/\b1\/4\b/g, 'one quarter'],
+    [/\b1\/3\b/g, 'one third'],
+    [/\b3\/8\b/g, 'three eighths'],
+    [/\b1\/2\b/g, 'one half'],
+    [/\b5\/8\b/g, 'five eighths'],
+    [/\b2\/3\b/g, 'two thirds'],
+    [/\b3\/4\b/g, 'three quarters'],
+    [/\b7\/8\b/g, 'seven eighths'],
+    [/½/g, 'one half'],
+    [/⅓/g, 'one third'],
+    [/⅔/g, 'two thirds'],
+    [/¼/g, 'one quarter'],
+    [/¾/g, 'three quarters'],
+  ];
+  for (const [pattern, replacement] of fractionReplacements) {
+    result = result.replace(pattern, replacement);
+  }
+
+  // 2. Expand common unit abbreviations
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:tsp|ts)\.?\b/gi, '$1 teaspoon');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:tbsp|tbs|tb)\.?\b/gi, '$1 tablespoon');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:oz)\.?\b/gi, '$1 ounce');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:lb)\.?\b/gi, '$1 pound');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:min|mins)\.?\b/gi, '$1 minute');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:hr|hrs)\.?\b/gi, '$1 hour');
+
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:tsp|ts|teaspoons?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} teaspoon` : `${num} teaspoons`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:tbsp|tbs|tb|tablespoons?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} tablespoon` : `${num} tablespoons`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounces?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} ounce` : `${num} ounces`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:lbs?|pounds?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} pound` : `${num} pounds`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:min|mins|minutes?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} minute` : `${num} minutes`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:hr|hrs|hours?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} hour` : `${num} hours`;
+  });
+
+  return result;
+}
+
 /**
  * Converts quantity and unit into natural spoken text for TTS
  */
@@ -218,7 +528,8 @@ export function formatIngredientForVoice(ingredient: Ingredient, scaleFactor: nu
     }
   }
 
-  const unitPart = ingredient.unit ? ` ${ingredient.unit}` : '';
+  const spokenUnit = formatUnitForVoice(ingredient.unit, scaledQty);
+  const unitPart = spokenUnit ? ` ${spokenUnit}` : '';
   const notesPart = ingredient.notes ? `, ${ingredient.notes}` : '';
   return `${spokenQty}${unitPart} of ${ingredient.name}${notesPart}`;
 }

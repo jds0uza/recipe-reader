@@ -52,15 +52,15 @@ export const TUSCAN_GARLIC_CHICKEN: Recipe = {
   totalTimeMinutes: 30,
   source: 'Culinary Bistro',
   ingredients: [
-    { id: 'ing-1', raw: '1.5 lbs boneless skinless chicken breasts', name: 'boneless skinless chicken breasts', quantity: 1.5, unit: 'lbs' },
-    { id: 'ing-2', raw: '2 tbsp olive oil', name: 'olive oil', quantity: 2, unit: 'tbsp' },
-    { id: 'ing-3', raw: '1 tsp Italian seasoning', name: 'Italian seasoning', quantity: 1, unit: 'tsp' },
-    { id: 'ing-4', raw: '1 cup heavy whipping cream', name: 'heavy whipping cream', quantity: 1, unit: 'cup' },
-    { id: 'ing-5', raw: '1/2 cup chicken broth', name: 'chicken broth', quantity: 0.5, unit: 'cup' },
-    { id: 'ing-6', raw: '4 cloves garlic, minced', name: 'garlic', quantity: 4, unit: 'cloves', notes: 'minced' },
-    { id: 'ing-7', raw: '1/2 cup sun-dried tomatoes, drained and sliced', name: 'sun-dried tomatoes', quantity: 0.5, unit: 'cup', notes: 'sliced' },
-    { id: 'ing-8', raw: '2 cups fresh baby spinach', name: 'fresh baby spinach', quantity: 2, unit: 'cups' },
-    { id: 'ing-9', raw: '1/2 cup grated Parmesan cheese', name: 'grated Parmesan cheese', quantity: 0.5, unit: 'cup' }
+    { id: 'ing-1', raw: '1.5 lbs boneless skinless chicken breasts', name: 'boneless skinless chicken breasts', quantity: 1.5, unit: 'lbs', group: 'Chicken' },
+    { id: 'ing-2', raw: '2 tbsp olive oil', name: 'olive oil', quantity: 2, unit: 'tbsp', group: 'Chicken' },
+    { id: 'ing-3', raw: '1 tsp Italian seasoning', name: 'Italian seasoning', quantity: 1, unit: 'tsp', group: 'Chicken' },
+    { id: 'ing-4', raw: '1 cup heavy whipping cream', name: 'heavy whipping cream', quantity: 1, unit: 'cup', group: 'Cream Sauce' },
+    { id: 'ing-5', raw: '1/2 cup chicken broth', name: 'chicken broth', quantity: 0.5, unit: 'cup', group: 'Cream Sauce' },
+    { id: 'ing-6', raw: '4 cloves garlic, minced', name: 'garlic', quantity: 4, unit: 'cloves', notes: 'minced', group: 'Cream Sauce' },
+    { id: 'ing-7', raw: '1/2 cup sun-dried tomatoes, drained and sliced', name: 'sun-dried tomatoes', quantity: 0.5, unit: 'cup', notes: 'sliced', group: 'Cream Sauce' },
+    { id: 'ing-8', raw: '2 cups fresh baby spinach', name: 'fresh baby spinach', quantity: 2, unit: 'cups', group: 'Cream Sauce' },
+    { id: 'ing-9', raw: '1/2 cup grated Parmesan cheese', name: 'grated Parmesan cheese', quantity: 0.5, unit: 'cup', group: 'Cream Sauce' }
   ],
   steps: [
     { id: 1, instruction: 'Season chicken breasts evenly with Italian seasoning, salt, and freshly cracked black pepper.' },

@@ -9,6 +9,7 @@ export interface Ingredient {
   quantity: number | null;
   unit: string | null;
   notes?: string;
+  group?: string;
 }
 
 export interface RecipeStep {

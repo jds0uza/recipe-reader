@@ -30,15 +30,212 @@ function formatQuantityFraction(qty) {
   return (Math.round(qty * 100) / 100).toString();
 }
 
+const UNIT_EXPANSIONS = {
+  tsp: { singular: 'teaspoon', plural: 'teaspoons' },
+  ts: { singular: 'teaspoon', plural: 'teaspoons' },
+  teaspoon: { singular: 'teaspoon', plural: 'teaspoons' },
+  teaspoons: { singular: 'teaspoon', plural: 'teaspoons' },
+
+  tbsp: { singular: 'tablespoon', plural: 'tablespoons' },
+  tbs: { singular: 'tablespoon', plural: 'tablespoons' },
+  tb: { singular: 'tablespoon', plural: 'tablespoons' },
+  tablespoon: { singular: 'tablespoon', plural: 'tablespoons' },
+  tablespoons: { singular: 'tablespoon', plural: 'tablespoons' },
+
+  c: { singular: 'cup', plural: 'cups' },
+  cup: { singular: 'cup', plural: 'cups' },
+  cups: { singular: 'cup', plural: 'cups' },
+
+  oz: { singular: 'ounce', plural: 'ounces' },
+  ounce: { singular: 'ounce', plural: 'ounces' },
+  ounces: { singular: 'ounce', plural: 'ounces' },
+
+  'fl oz': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fl. oz': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fl oz.': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fluid ounce': { singular: 'fluid ounce', plural: 'fluid ounces' },
+  'fluid ounces': { singular: 'fluid ounce', plural: 'fluid ounces' },
+
+  lb: { singular: 'pound', plural: 'pounds' },
+  lbs: { singular: 'pound', plural: 'pounds' },
+  pound: { singular: 'pound', plural: 'pounds' },
+  pounds: { singular: 'pound', plural: 'pounds' },
+
+  g: { singular: 'gram', plural: 'grams' },
+  gram: { singular: 'gram', plural: 'grams' },
+  grams: { singular: 'gram', plural: 'grams' },
+
+  kg: { singular: 'kilogram', plural: 'kilograms' },
+  kgs: { singular: 'kilogram', plural: 'kilograms' },
+  kilogram: { singular: 'kilogram', plural: 'kilograms' },
+  kilograms: { singular: 'kilogram', plural: 'kilograms' },
+
+  ml: { singular: 'milliliter', plural: 'milliliters' },
+  milliliter: { singular: 'milliliter', plural: 'milliliters' },
+  milliliters: { singular: 'milliliter', plural: 'milliliters' },
+
+  l: { singular: 'liter', plural: 'liters' },
+  liter: { singular: 'liter', plural: 'liters' },
+  liters: { singular: 'liter', plural: 'liters' },
+
+  pt: { singular: 'pint', plural: 'pints' },
+  pint: { singular: 'pint', plural: 'pints' },
+  pints: { singular: 'pint', plural: 'pints' },
+
+  qt: { singular: 'quart', plural: 'quarts' },
+  quart: { singular: 'quart', plural: 'quarts' },
+  quarts: { singular: 'quart', plural: 'quarts' },
+
+  gal: { singular: 'gallon', plural: 'gallons' },
+  gallon: { singular: 'gallon', plural: 'gallons' },
+  gallons: { singular: 'gallon', plural: 'gallons' },
+
+  pinch: { singular: 'pinch', plural: 'pinches' },
+  pinches: { singular: 'pinch', plural: 'pinches' },
+
+  dash: { singular: 'dash', plural: 'dashes' },
+  dashes: { singular: 'dash', plural: 'dashes' },
+
+  clove: { singular: 'clove', plural: 'cloves' },
+  cloves: { singular: 'clove', plural: 'cloves' },
+
+  slice: { singular: 'slice', plural: 'slices' },
+  slices: { singular: 'slice', plural: 'slices' },
+
+  piece: { singular: 'piece', plural: 'pieces' },
+  pieces: { singular: 'piece', plural: 'pieces' },
+
+  sprig: { singular: 'sprig', plural: 'sprigs' },
+  sprigs: { singular: 'sprig', plural: 'sprigs' },
+
+  stalk: { singular: 'stalk', plural: 'stalks' },
+  stalks: { singular: 'stalk', plural: 'stalks' },
+
+  can: { singular: 'can', plural: 'cans' },
+  cans: { singular: 'can', plural: 'cans' },
+
+  pkg: { singular: 'package', plural: 'packages' },
+  pkgs: { singular: 'package', plural: 'packages' },
+  package: { singular: 'package', plural: 'packages' },
+  packages: { singular: 'package', plural: 'packages' },
+
+  bunch: { singular: 'bunch', plural: 'bunches' },
+  bunches: { singular: 'bunch', plural: 'bunches' },
+
+  head: { singular: 'head', plural: 'heads' },
+  heads: { singular: 'head', plural: 'heads' },
+};
+
+function formatUnitForVoice(unit, quantity) {
+  if (!unit) return '';
+  const trimmed = unit.trim();
+  if (!trimmed) return '';
+
+  const isPlural = quantity !== null && quantity > 1;
+
+  if (trimmed === 'T') {
+    return isPlural ? 'tablespoons' : 'tablespoon';
+  }
+  if (trimmed === 't') {
+    return isPlural ? 'teaspoons' : 'teaspoon';
+  }
+
+  const cleanUnit = trimmed.toLowerCase().replace(/\.+$/, '');
+  const match = UNIT_EXPANSIONS[cleanUnit];
+  if (match) {
+    return isPlural ? match.plural : match.singular;
+  }
+
+  return trimmed;
+}
+
+function expandTextForSpeech(text) {
+  if (!text) return '';
+
+  let result = text;
+
+  // 1. Expand fractions
+  const fractionReplacements = [
+    [/\b1\/8\b/g, 'one eighth'],
+    [/\b1\/4\b/g, 'one quarter'],
+    [/\b1\/3\b/g, 'one third'],
+    [/\b3\/8\b/g, 'three eighths'],
+    [/\b1\/2\b/g, 'one half'],
+    [/\b5\/8\b/g, 'five eighths'],
+    [/\b2\/3\b/g, 'two thirds'],
+    [/\b3\/4\b/g, 'three quarters'],
+    [/\b7\/8\b/g, 'seven eighths'],
+    [/½/g, 'one half'],
+    [/⅓/g, 'one third'],
+    [/⅔/g, 'two thirds'],
+    [/¼/g, 'one quarter'],
+    [/¾/g, 'three quarters'],
+  ];
+  for (const [pattern, replacement] of fractionReplacements) {
+    result = result.replace(pattern, replacement);
+  }
+
+  // 2. Expand common unit abbreviations
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:tsp|ts)\.?\b/gi, '$1 teaspoon');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:tbsp|tbs|tb)\.?\b/gi, '$1 tablespoon');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:oz)\.?\b/gi, '$1 ounce');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:lb)\.?\b/gi, '$1 pound');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:min|mins)\.?\b/gi, '$1 minute');
+  result = result.replace(/\b(1|one half|one quarter|one third|three quarters|one eighth)\s*(?:hr|hrs)\.?\b/gi, '$1 hour');
+
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:tsp|ts|teaspoons?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} teaspoon` : `${num} teaspoons`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:tbsp|tbs|tb|tablespoons?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} tablespoon` : `${num} tablespoons`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:oz|ounces?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} ounce` : `${num} ounces`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:lbs?|pounds?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} pound` : `${num} pounds`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:min|mins|minutes?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} minute` : `${num} minutes`;
+  });
+  result = result.replace(/\b(\d+(?:\.\d+)?)\s*(?:hr|hrs|hours?)\.?\b/gi, (_match, num) => {
+    return parseFloat(num) <= 1 ? `${num} hour` : `${num} hours`;
+  });
+
+  return result;
+}
+
 function formatIngredientForVoice(ingredient, scaleFactor = 1.0) {
   if (ingredient.quantity === null) {
     return ingredient.name + (ingredient.notes ? `, ${ingredient.notes}` : '');
   }
   const scaledQty = ingredient.quantity * scaleFactor;
-  const fractionStr = formatQuantityFraction(scaledQty);
-  const unit = ingredient.unit ? ` ${ingredient.unit}` : '';
+  const formattedFraction = formatQuantityFraction(scaledQty);
+
+  const voiceFractionMap = {
+    '1/8': 'one eighth',
+    '1/4': 'one quarter',
+    '1/3': 'one third',
+    '3/8': 'three eighths',
+    '1/2': 'one half',
+    '5/8': 'five eighths',
+    '2/3': 'two thirds',
+    '3/4': 'three quarters',
+    '7/8': 'seven eighths',
+  };
+
+  let spokenQty = formattedFraction;
+  for (const [frac, spoken] of Object.entries(voiceFractionMap)) {
+    if (formattedFraction.includes(frac)) {
+      spokenQty = formattedFraction.replace(frac, spoken);
+      break;
+    }
+  }
+
+  const spokenUnit = formatUnitForVoice(ingredient.unit, scaledQty);
+  const unit = spokenUnit ? ` ${spokenUnit}` : '';
   const notes = ingredient.notes ? `, ${ingredient.notes}` : '';
-  return `${fractionStr}${unit} of ${ingredient.name}${notes}`;
+  return `${spokenQty}${unit} of ${ingredient.name}${notes}`;
 }
 
 // --- Sound Effects using Web Audio API ---
@@ -57,20 +254,40 @@ class WebAudioEffects {
     return this.ctx;
   }
   playChime() {
-    const ctx = this.getContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, now);
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.4);
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch {}
+  }
+  playClick() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } catch {}
   }
   playAlarm() {
     const ctx = this.getContext();
@@ -207,8 +424,6 @@ class VoiceRecognitionManager {
     this.lastActionType = null;
     this.lastInteractionTime = Date.now();
     this.INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5-minute auto-shutoff to protect memory & CPU
-    this.rapidRestartCount = 0;
-    this.lastRestartTime = 0;
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     this.SpeechRec = SpeechRec;
@@ -232,7 +447,7 @@ class VoiceRecognitionManager {
       if (this.isListening) {
         const idleTime = Date.now() - this.lastInteractionTime;
         if (idleTime > this.INACTIVITY_TIMEOUT_MS) {
-          this.sleep('💤 Mic auto-paused after 5 min of inactivity to save memory. Tap mic or press M to resume.');
+          this.sleep('💤 Mic paused after 5 min of inactivity to save memory. Tap mic or press M to resume.');
         }
       }
     }, 15000);
@@ -254,10 +469,9 @@ class VoiceRecognitionManager {
     this.lastInteractionTime = Date.now();
   }
 
-  createRecognizer() {
+  initRecognizer() {
     if (!this.SpeechRec) return null;
 
-    // Fully tear down any previous instance to release Chrome's internal C++ audio buffer
     if (this.recognition) {
       try {
         this.recognition.onstart = null;
@@ -265,7 +479,7 @@ class VoiceRecognitionManager {
         this.recognition.onerror = null;
         this.recognition.onend = null;
         this.recognition.abort();
-      } catch { }
+      } catch {}
       this.recognition = null;
     }
 
@@ -340,32 +554,18 @@ class VoiceRecognitionManager {
 
     rec.onend = () => {
       if (this.shouldKeepListening) {
-        // Circuit breaker: prevent tight restart spin-loops (max 5 restarts per 5 seconds)
-        const now = Date.now();
-        if (now - this.lastRestartTime < 5000) {
-          this.rapidRestartCount++;
-          if (this.rapidRestartCount > 5) {
-            console.warn('SpeechRecognition rapid restart threshold reached. Pausing.');
-            this.sleep('⚠️ Voice paused due to frequent restarts. Tap mic to resume.');
-            return;
-          }
-        } else {
-          this.rapidRestartCount = 0;
-        }
-        this.lastRestartTime = now;
-
         clearTimeout(this.restartTimeout);
         this.restartTimeout = setTimeout(() => {
-          if (this.shouldKeepListening) {
-            // Re-instantiate a fresh recognizer instance to release Chrome's internal memory buffers
-            this.recognition = this.createRecognizer();
-            if (this.recognition) {
-              try { this.recognition.start(); } catch (err) {
-                console.warn('Restart start error:', err);
+          if (this.shouldKeepListening && this.recognition) {
+            try {
+              this.recognition.start();
+            } catch (err) {
+              if (err.name !== 'InvalidStateError') {
+                console.warn('Recognition resume error:', err);
               }
             }
           }
-        }, 300);
+        }, 250);
       } else {
         this.isListening = false;
         this.updateUi();
@@ -398,6 +598,7 @@ class VoiceRecognitionManager {
       }
     };
 
+    this.recognition = rec;
     return rec;
   }
 
@@ -413,12 +614,10 @@ class VoiceRecognitionManager {
     }
   }
 
-  async start() {
+  start() {
     this.bumpActivity();
     const displayEl = document.getElementById('liveTranscriptDisplay');
-    const micStatus = document.getElementById('micStatusText');
 
-    // 1. Check browser engine support
     if (!this.SpeechRec) {
       const msg = 'Speech recognition is not supported in this browser (e.g. Firefox). Please use Google Chrome, Safari, or Microsoft Edge.';
       if (displayEl) displayEl.innerText = `⚠️ ${msg}`;
@@ -426,7 +625,6 @@ class VoiceRecognitionManager {
       return;
     }
 
-    // 2. Check if on file:// protocol
     if (window.location.protocol === 'file:') {
       if (displayEl) {
         displayEl.innerHTML = '⚠️ <strong>Microphone blocked on file://</strong><br/>Please open via <strong><a href="http://localhost:3000" style="color:var(--accent-primary)">http://localhost:3000</a></strong>';
@@ -435,30 +633,11 @@ class VoiceRecognitionManager {
       return;
     }
 
-    // 3. Inspect existing permission status if query API is available
-    if (navigator.permissions && navigator.permissions.query) {
-      try {
-        const perm = await navigator.permissions.query({ name: 'microphone' });
-        if (perm.state === 'denied') {
-          if (micStatus) {
-            micStatus.innerText = 'Permission Blocked';
-            micStatus.style.color = 'var(--accent-danger)';
-          }
-          if (displayEl) {
-            displayEl.innerHTML = '⚠️ <strong>Microphone Blocked in Browser</strong><br/>Click the tune/lock icon 🔒 to the left of the URL bar and change Microphone from "Block" to "Allow", then refresh.';
-          }
-          alert('Microphone access is currently Blocked for localhost.\n\nTo fix:\n1. Click the icon directly to the left of "localhost:3000" in the address bar.\n2. Toggle Microphone to "Allow".\n3. Refresh the page.');
-          return;
-        }
-      } catch (e) {
-        // Permissions query not supported or failed, proceed to start()
-      }
+    this.shouldKeepListening = true;
+    if (!this.recognition) {
+      this.initRecognizer();
     }
 
-    // 4. Start fresh SpeechRecognition instance
-    this.shouldKeepListening = true;
-    this.rapidRestartCount = 0;
-    this.recognition = this.createRecognizer();
     if (this.recognition) {
       try {
         this.recognition.start();
@@ -466,11 +645,11 @@ class VoiceRecognitionManager {
         this.updateUi();
         if (displayEl) displayEl.innerText = 'Requesting mic access...';
       } catch (e) {
-        console.warn('SpeechRecognition start error:', e);
         if (e.name === 'InvalidStateError') {
           this.isListening = true;
           this.updateUi();
         } else {
+          console.warn('SpeechRecognition start error:', e);
           if (displayEl) displayEl.innerText = `⚠️ Recognition failed: ${e.message || e.name}`;
         }
       }
@@ -479,6 +658,16 @@ class VoiceRecognitionManager {
 
   sleep(reasonText) {
     this.stop();
+    if (this.recognition) {
+      try {
+        this.recognition.onstart = null;
+        this.recognition.onresult = null;
+        this.recognition.onerror = null;
+        this.recognition.onend = null;
+        this.recognition.abort();
+      } catch {}
+      this.recognition = null;
+    }
     const micStatus = document.getElementById('micStatusText');
     const displayEl = document.getElementById('liveTranscriptDisplay');
     const micHint = document.getElementById('micHintText');
@@ -487,7 +676,7 @@ class VoiceRecognitionManager {
       micStatus.style.color = 'var(--text-muted)';
     }
     if (micHint) {
-      micHint.innerText = '👉 Tap mic or press M to wake';
+      micHint.innerText = 'Turn on microphone';
     }
     if (displayEl && reasonText) {
       displayEl.innerText = reasonText;
@@ -497,18 +686,12 @@ class VoiceRecognitionManager {
   stop() {
     this.shouldKeepListening = false;
     clearTimeout(this.restartTimeout);
-    this.rapidRestartCount = 0;
+    this.isListening = false;
     if (this.recognition) {
       try {
-        this.recognition.onstart = null;
-        this.recognition.onresult = null;
-        this.recognition.onerror = null;
-        this.recognition.onend = null;
-        this.recognition.abort();
-      } catch { }
-      this.recognition = null;
+        this.recognition.stop();
+      } catch {}
     }
-    this.isListening = false;
     this.updateUi();
   }
 
@@ -518,15 +701,19 @@ class VoiceRecognitionManager {
     const micHint = document.getElementById('micHintText');
 
     if (this.isListening) {
-      micBtn.classList.add('active');
-      micStatus.innerText = 'Listening Continuously';
-      micStatus.style.color = 'var(--accent-secondary)';
+      if (micBtn) micBtn.classList.add('active');
+      if (micStatus) {
+        micStatus.innerText = 'Listening Continuously';
+        micStatus.style.color = 'var(--accent-secondary)';
+      }
       if (micHint) micHint.innerText = 'Tap mic to pause listening';
     } else {
-      micBtn.classList.remove('active');
-      micStatus.innerText = 'Mic Inactive';
-      micStatus.style.color = 'var(--text-muted)';
-      if (micHint) micHint.innerText = 'Tap mic to start listening';
+      if (micBtn) micBtn.classList.remove('active');
+      if (micStatus) {
+        micStatus.innerText = 'Mic off';
+        micStatus.style.color = 'var(--text-muted)';
+      }
+      if (micHint) micHint.innerText = 'Turn on microphone';
     }
   }
 }
@@ -556,29 +743,42 @@ class RecipeApp {
     }
 
     // Navigation buttons
-    document.getElementById('btnNextStep').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      // Auto-engage voice mode on first user interaction if not listening yet
-      if (!this.voiceRecognition.isListening && window.location.protocol !== 'file:') {
-        this.voiceRecognition.start();
-      }
-      this.next_step();
-    });
+    const nextBtn = document.getElementById('btnNextStep');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        try { this.soundEffects.playClick(); } catch {}
+        // Auto-engage voice mode on first user interaction if not listening yet
+        if (this.voiceRecognition && !this.voiceRecognition.isListening && window.location.protocol !== 'file:') {
+          try {
+            this.voiceRecognition.start();
+          } catch (e) {
+            console.warn('Voice auto-start failed:', e);
+          }
+        }
+        this.next_step();
+      });
+    }
 
-    document.getElementById('btnPrevStep').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      this.previous_step();
-    });
+    const prevBtn = document.getElementById('btnPrevStep');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        try { this.soundEffects.playClick(); } catch {}
+        this.previous_step();
+      });
+    }
 
-    document.getElementById('btnRepeatStep').addEventListener('click', () => {
-      this.soundEffects.playClick();
-      this.repeat_step();
-    });
+    const repeatBtn = document.getElementById('btnRepeatStep');
+    if (repeatBtn) {
+      repeatBtn.addEventListener('click', () => {
+        try { this.soundEffects.playClick(); } catch {}
+        this.repeat_step();
+      });
+    }
 
     const stopBtn = document.getElementById('btnStopSpeech');
     if (stopBtn) {
       stopBtn.addEventListener('click', () => {
-        this.soundEffects.playClick();
+        try { this.soundEffects.playClick(); } catch {}
         this.handleVoiceIntent({ action: 'STOP', rawTranscript: 'Manual Stop Button' });
       });
     }
@@ -785,7 +985,7 @@ class RecipeApp {
     const step = this.recipe.steps[this.currentStepIndex];
     if (!step) return;
 
-    const textToSpeak = `Step ${step.id}. ${step.instruction}`;
+    const textToSpeak = `Step ${step.id}. ${expandTextForSpeech(step.instruction)}`;
     this.speech.speak(textToSpeak, () => {
       this.status = 'AWAITING_INPUT';
       document.getElementById('stateStatusBadge').innerText = 'AWAITING_INPUT';
@@ -834,9 +1034,19 @@ class RecipeApp {
   render() {
     if (!this.recipe) return;
 
-    // Header & Meta
+    // Header & Meta: Render clean cooking metrics under title - no blog fluff
     document.getElementById('recipeTitleDisplay').innerText = this.recipe.title;
-    document.getElementById('recipeDescDisplay').innerText = this.recipe.description || 'Hands-free cooking assistant ready.';
+    
+    const descEl = document.getElementById('recipeDescDisplay');
+    if (descEl) {
+      const metaParts = [];
+      if (this.recipe.prepTimeMinutes) metaParts.push(`Prep: ${this.recipe.prepTimeMinutes}m`);
+      if (this.recipe.cookTimeMinutes) metaParts.push(`Cook: ${this.recipe.cookTimeMinutes}m`);
+      if (this.recipe.totalTimeMinutes) metaParts.push(`Total: ${this.recipe.totalTimeMinutes}m`);
+      metaParts.push(`${this.recipe.steps.length} guided steps`);
+      descEl.innerText = `⏱️ ${metaParts.join(' • ')}`;
+    }
+
     document.getElementById('servingsDisplay').innerText = `${this.recipe.currentServings} Servings`;
     document.getElementById('stateStatusBadge').innerText = this.status;
 
@@ -845,53 +1055,157 @@ class RecipeApp {
     document.getElementById('ingredientCount').innerText = `${this.recipe.ingredients.length} items`;
     ingListEl.innerHTML = '';
 
+    // Group ingredients by their .group (preserving order)
+    const sections = [];
+    let currentSection = null;
+
     this.recipe.ingredients.forEach(ing => {
-      const li = document.createElement('li');
-      li.className = 'ingredient-item';
+      const groupName = ing.group ? ing.group.trim() : '';
+      if (!currentSection || currentSection.title !== groupName) {
+        currentSection = { title: groupName, items: [] };
+        sections.push(currentSection);
+      }
+      currentSection.items.push(ing);
+    });
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.addEventListener('change', () => li.classList.toggle('checked', checkbox.checked));
+    sections.forEach(section => {
+      const sectionEl = document.createElement('div');
+      sectionEl.className = 'ingredient-section';
 
-      const span = document.createElement('span');
-      span.className = 'ingredient-text';
+      if (section.title) {
+        const titleEl = document.createElement('h4');
+        titleEl.className = 'ingredient-group-title';
+        titleEl.innerText = section.title;
+        sectionEl.appendChild(titleEl);
+      }
 
-      const qtyStr = ing.quantity !== null ? formatQuantityFraction(ing.quantity) : '';
-      const unitStr = ing.unit ? ` ${ing.unit}` : '';
-      const notesStr = ing.notes ? ` (${ing.notes})` : '';
+      const ul = document.createElement('ul');
+      ul.className = 'ingredient-grid';
 
-      span.innerHTML = `<span class="ingredient-qty">${qtyStr}${unitStr}</span> ${ing.name}${notesStr}`;
+      section.items.forEach(ing => {
+        const li = document.createElement('li');
+        li.className = 'ingredient-item';
 
-      li.appendChild(checkbox);
-      li.appendChild(span);
-      ingListEl.appendChild(li);
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.addEventListener('change', () => li.classList.toggle('checked', checkbox.checked));
+
+        const span = document.createElement('span');
+        span.className = 'ingredient-text';
+
+        const qtyStr = ing.quantity !== null ? formatQuantityFraction(ing.quantity) : '';
+        const unitStr = ing.unit ? ` ${ing.unit}` : '';
+        
+        let cleanName = (ing.name || '').trim()
+          .replace(/&#39;|&apos;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+
+        let cleanNotes = (ing.notes || '').trim()
+          .replace(/&#39;|&apos;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+
+        // If cleanName ends with a parenthetical and cleanNotes is empty, extract it client-side
+        if (!cleanNotes && cleanName.endsWith(')')) {
+          let depth = 0;
+          for (let i = cleanName.length - 1; i >= 0; i--) {
+            if (cleanName[i] === ')') depth++;
+            else if (cleanName[i] === '(') {
+              depth--;
+              if (depth === 0) {
+                let startIdx = i;
+                while (startIdx > 0 && (cleanName[startIdx - 1] === '(' || (cleanName[startIdx - 1] === ' ' && startIdx > 1 && cleanName[startIdx - 2] === '('))) {
+                  startIdx--;
+                }
+                cleanNotes = cleanName.slice(startIdx).trim();
+                cleanName = cleanName.slice(0, startIdx).trim();
+                break;
+              }
+            }
+          }
+        }
+
+        // Clean dangling punctuation or open parens from cleanName
+        cleanName = cleanName.replace(/[,;:\-\s(]+$/, '').replace(/^[\s(]+/, '').trim();
+
+        // Clean outer parens and leading punctuation from notes
+        if (cleanNotes) {
+          let stripped = true;
+          while (stripped && cleanNotes.startsWith('(') && cleanNotes.endsWith(')')) {
+            let depth = 0;
+            let matchedEnd = false;
+            for (let i = 0; i < cleanNotes.length; i++) {
+              if (cleanNotes[i] === '(') depth++;
+              else if (cleanNotes[i] === ')') {
+                depth--;
+                if (depth === 0) {
+                  if (i === cleanNotes.length - 1) matchedEnd = true;
+                  break;
+                }
+              }
+            }
+            if (matchedEnd) {
+              cleanNotes = cleanNotes.slice(1, -1).trim();
+            } else {
+              stripped = false;
+            }
+          }
+          cleanNotes = cleanNotes.replace(/^[,;:\-\s]+/, '').trim();
+          while (cleanNotes.startsWith('(') && cleanNotes.endsWith(')')) {
+            cleanNotes = cleanNotes.slice(1, -1).trim();
+          }
+        }
+
+        let notesStr = '';
+        if (cleanNotes) {
+          notesStr = `: <em class="ingredient-notes">${cleanNotes}</em>`;
+        }
+
+        const space = (qtyStr || unitStr) ? ' ' : '';
+        span.innerHTML = `<span class="ingredient-qty">${qtyStr}${unitStr}</span>${space}<span class="ingredient-name">${cleanName}</span>${notesStr}`;
+
+        li.appendChild(checkbox);
+        li.appendChild(span);
+        ul.appendChild(li);
+      });
+
+      sectionEl.appendChild(ul);
+      ingListEl.appendChild(sectionEl);
     });
 
     // Render Step Reader
     const stepCounterEl = document.getElementById('stepCounterDisplay');
     const instructionEl = document.getElementById('stepInstructionText');
     const progressBar = document.getElementById('stepProgressBar');
+    const nextBtn = document.getElementById('btnNextStep');
 
     if (this.currentStepIndex === -1) {
-      stepCounterEl.innerText = `Ready • ${this.recipe.steps.length} Steps Total`;
-      instructionEl.innerText = `Click "Next Step" or say "Next" to begin Step 1.`;
-      progressBar.style.width = '0%';
-      document.getElementById('btnNextStep').innerText = 'Start Recipe ➡';
+      if (stepCounterEl) stepCounterEl.innerText = `Ready • ${this.recipe.steps.length} Steps Total`;
+      if (instructionEl) instructionEl.innerText = `Click "Start recipe" or say "Next" to begin Step 1.`;
+      if (progressBar) progressBar.style.width = '0%';
+      if (nextBtn) nextBtn.innerHTML = '<span>Start recipe</span><svg><use href="#icon-forward"></use></svg>';
     } else if (this.status === 'COMPLETED') {
-      stepCounterEl.innerText = 'Completed! 🎉';
-      instructionEl.innerHTML = `<div class="completed-banner"><h2>All Done! 👨‍🍳</h2><p>You have finished making ${this.recipe.title}. Enjoy!</p></div>`;
-      progressBar.style.width = '100%';
-      document.getElementById('btnNextStep').innerText = 'Restart 🔄';
+      if (stepCounterEl) stepCounterEl.innerText = 'Completed! 🎉';
+      if (instructionEl) instructionEl.innerHTML = `<div class="completed-banner"><h2>All Done! 👨‍🍳</h2><p>You have finished making ${this.recipe.title}. Enjoy!</p></div>`;
+      if (progressBar) progressBar.style.width = '100%';
+      if (nextBtn) nextBtn.innerHTML = '<span>Restart</span><svg><use href="#icon-repeat"></use></svg>';
     } else {
       const step = this.recipe.steps[this.currentStepIndex];
-      stepCounterEl.innerText = `Step ${step.id} of ${this.recipe.steps.length}`;
-      instructionEl.innerText = step.instruction;
+      if (stepCounterEl) stepCounterEl.innerText = `Step ${step.id} of ${this.recipe.steps.length}`;
+      if (instructionEl) instructionEl.innerText = step.instruction;
 
       const pct = Math.round(((this.currentStepIndex + 1) / this.recipe.steps.length) * 100);
-      progressBar.style.width = `${pct}%`;
+      if (progressBar) progressBar.style.width = `${pct}%`;
 
-      document.getElementById('btnNextStep').innerText =
-        this.currentStepIndex === this.recipe.steps.length - 1 ? 'Finish Recipe 🏆' : 'Next Step ➡';
+      const isFinal = this.currentStepIndex === this.recipe.steps.length - 1;
+      if (nextBtn) {
+        nextBtn.innerHTML = `<span>${isFinal ? 'Finish recipe' : 'Next step'}</span><svg><use href="#icon-forward"></use></svg>`;
+      }
     }
   }
 
@@ -964,12 +1278,12 @@ class RecipeApp {
         currentServings: 4,
         scaleFactor: 1.0,
         ingredients: [
-          { id: 'ing-1', raw: '1.5 lbs chicken breasts', name: 'boneless chicken breasts', quantity: 1.5, unit: 'lbs' },
-          { id: 'ing-2', raw: '2 tbsp olive oil', name: 'olive oil', quantity: 2, unit: 'tbsp' },
-          { id: 'ing-3', raw: '1 cup heavy cream', name: 'heavy cream', quantity: 1, unit: 'cup' },
-          { id: 'ing-4', raw: '4 cloves garlic', name: 'garlic', quantity: 4, unit: 'cloves', notes: 'minced' },
-          { id: 'ing-5', raw: '2 cups baby spinach', name: 'fresh baby spinach', quantity: 2, unit: 'cups' },
-          { id: 'ing-6', raw: '1/2 cup Parmesan cheese', name: 'grated Parmesan cheese', quantity: 0.5, unit: 'cup' }
+          { id: 'ing-1', raw: '1.5 lbs chicken breasts', name: 'boneless chicken breasts', quantity: 1.5, unit: 'lbs', group: 'Chicken' },
+          { id: 'ing-2', raw: '2 tbsp olive oil', name: 'olive oil', quantity: 2, unit: 'tbsp', group: 'Chicken' },
+          { id: 'ing-3', raw: '1 cup heavy cream', name: 'heavy cream', quantity: 1, unit: 'cup', group: 'Cream Sauce' },
+          { id: 'ing-4', raw: '4 cloves garlic', name: 'garlic', quantity: 4, unit: 'cloves', notes: 'minced', group: 'Cream Sauce' },
+          { id: 'ing-5', raw: '2 cups baby spinach', name: 'fresh baby spinach', quantity: 2, unit: 'cups', group: 'Cream Sauce' },
+          { id: 'ing-6', raw: '1/2 cup Parmesan cheese', name: 'grated Parmesan cheese', quantity: 0.5, unit: 'cup', group: 'Cream Sauce' }
         ],
         steps: [
           { id: 1, instruction: 'Season chicken breasts evenly with Italian seasoning, salt, and pepper.' },

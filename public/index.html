@@ -1,29 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#f5f1e8" />
   <title>SousChef — Hands-free recipe guidance</title>
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=5" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
 </head>
 
 <body>
   <svg class="icon-sprite" aria-hidden="true">
-    <symbol id="icon-chef" viewBox="0 0 24 24"><path d="M6 13.5V20h12v-6.5M8 17h8M7.2 13.5A4 4 0 0 1 8 5.6 4.5 4.5 0 0 1 16 5.6a4 4 0 0 1 .8 7.9Z"/></symbol>
-    <symbol id="icon-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></symbol>
-    <symbol id="icon-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/></symbol>
-    <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3ZM19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15ZM5 13l.7 2.3L8 16l-2.3.7L5 19l-.7-2.3L2 16l2.3-.7L5 13Z"/></symbol>
-    <symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
-    <symbol id="icon-volume" viewBox="0 0 24 24"><path d="M5 10v4h3l4 3V7L8 10H5ZM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></symbol>
-    <symbol id="icon-back" viewBox="0 0 24 24"><path d="m10 7-5 5 5 5M5 12h14"/></symbol>
-    <symbol id="icon-forward" viewBox="0 0 24 24"><path d="m14 7 5 5-5 5M19 12H5"/></symbol>
-    <symbol id="icon-repeat" viewBox="0 0 24 24"><path d="M17 2l3 3-3 3M20 5H9a5 5 0 0 0-5 5M7 22l-3-3 3-3M4 19h11a5 5 0 0 0 5-5"/></symbol>
-    <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
-    <symbol id="icon-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
-    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="icon-chef" viewBox="0 0 24 24">
+      <path d="M6 13.5V20h12v-6.5M8 17h8M7.2 13.5A4 4 0 0 1 8 5.6 4.5 4.5 0 0 1 16 5.6a4 4 0 0 1 .8 7.9Z" />
+    </symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24">
+      <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" />
+    </symbol>
+    <symbol id="icon-mic" viewBox="0 0 24 24">
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6" />
+    </symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24">
+      <path
+        d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3ZM19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15ZM5 13l.7 2.3L8 16l-2.3.7L5 19l-.7-2.3L2 16l2.3-.7L5 13Z" />
+    </symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24">
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </symbol>
+    <symbol id="icon-volume" viewBox="0 0 24 24">
+      <path d="M5 10v4h3l4 3V7L8 10H5ZM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" />
+    </symbol>
+    <symbol id="icon-back" viewBox="0 0 24 24">
+      <path d="m10 7-5 5 5 5M5 12h14" />
+    </symbol>
+    <symbol id="icon-forward" viewBox="0 0 24 24">
+      <path d="m14 7 5 5-5 5M19 12H5" />
+    </symbol>
+    <symbol id="icon-repeat" viewBox="0 0 24 24">
+      <path d="M17 2l3 3-3 3M20 5H9a5 5 0 0 0-5 5M7 22l-3-3 3-3M4 19h11a5 5 0 0 0 5-5" />
+    </symbol>
+    <symbol id="icon-stop" viewBox="0 0 24 24">
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24">
+      <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
+    </symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24">
+      <rect x="5" y="10" width="14" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </symbol>
   </svg>
 
   <div id="fileProtocolWarning" class="protocol-warning">
@@ -33,15 +62,20 @@
 
   <header class="site-header">
     <a class="brand" href="#" aria-label="SousChef home">
-      <span class="brand-mark"><svg><use href="#icon-chef"></use></svg></span>
+      <span class="brand-mark"><svg>
+          <use href="#icon-chef"></use>
+        </svg></span>
       <span>
         <strong>SousChef</strong>
         <small>Your hands-free cooking companion</small>
       </span>
     </a>
     <div class="wake-lock-control">
-      <button id="btnWakeLock" class="utility-button" type="button" aria-pressed="false" title="Prevent the screen from sleeping while cooking">
-        <svg><use href="#icon-eye"></use></svg>
+      <button id="btnWakeLock" class="utility-button" type="button" aria-pressed="false"
+        title="Prevent the screen from sleeping while cooking">
+        <svg>
+          <use href="#icon-eye"></use>
+        </svg>
         <span>Keep screen awake</span>
       </button>
       <span id="wakeLockMessage" class="wake-lock-message" role="status" aria-live="polite"></span>
@@ -53,17 +87,22 @@
       <div class="loader-copy">
         <span class="eyebrow">Cook without touching your screen</span>
         <h1 id="loaderTitle">Turn any recipe into a guided cooking session.</h1>
-        <p>Paste a recipe link, leave the microphone on, and ask SousChef to move forward, repeat a step, or find an ingredient.</p>
+        <p>Paste a recipe link, leave the microphone on, and ask SousChef to move forward, repeat a step, or find an
+          ingredient.</p>
       </div>
 
       <div class="loader-panel">
         <label for="recipeUrlInput">Recipe URL</label>
         <div class="url-bar">
-          <span class="input-icon"><svg><use href="#icon-link"></use></svg></span>
+          <span class="input-icon"><svg>
+              <use href="#icon-link"></use>
+            </svg></span>
           <input type="url" id="recipeUrlInput" class="url-input" placeholder="https://your-favorite-recipe.com/..." />
           <button class="btn-primary" id="btnLoadUrl">
-            <span>Read recipe</span>
-            <svg><use href="#icon-forward"></use></svg>
+            <span>Go!</span>
+            <svg>
+              <use href="#icon-forward"></use>
+            </svg>
           </button>
         </div>
         <div class="sample-row">
@@ -95,12 +134,13 @@
         <section class="step-reader-card" id="stepReaderCard" aria-labelledby="stepCounterDisplay">
           <div class="step-topline">
             <div>
-              <span class="section-kicker">Guided cooking</span>
               <div class="step-counter" id="stepCounterDisplay">Ready to cook</div>
             </div>
             <div class="status-cluster">
               <span id="speechStatusIndicator" class="status-pill speaking-pill">
-                <svg><use href="#icon-volume"></use></svg>
+                <svg>
+                  <use href="#icon-volume"></use>
+                </svg>
                 Speaking
               </span>
               <span id="stateStatusBadge" class="status-pill">Ready</span>
@@ -118,22 +158,32 @@
           </div>
 
           <div class="voice-reminder">
-            <svg><use href="#icon-spark"></use></svg>
+            <svg>
+              <use href="#icon-spark"></use>
+            </svg>
             <span>Your hands can stay busy. Say “repeat,” “back,” or “how much butter?” at any time.</span>
           </div>
 
           <div class="step-actions">
             <button class="btn-secondary action-compact" id="btnPrevStep" title="Go to the previous step">
-              <svg><use href="#icon-back"></use></svg><span>Back</span>
+              <svg>
+                <use href="#icon-back"></use>
+              </svg><span>Back</span>
             </button>
             <button class="btn-secondary action-compact" id="btnRepeatStep" title="Repeat this step aloud">
-              <svg><use href="#icon-repeat"></use></svg><span>Repeat</span>
+              <svg>
+                <use href="#icon-repeat"></use>
+              </svg><span>Repeat</span>
             </button>
             <button class="btn-danger action-compact" id="btnStopSpeech" title="Stop speaking immediately">
-              <svg><use href="#icon-stop"></use></svg><span>Stop</span>
+              <svg>
+                <use href="#icon-stop"></use>
+              </svg><span>Stop</span>
             </button>
             <button class="btn-primary action-next" id="btnNextStep" title="Advance to the next step">
-              <span>Start recipe</span><svg><use href="#icon-forward"></use></svg>
+              <span>Start recipe</span><svg>
+                <use href="#icon-forward"></use>
+              </svg>
             </button>
           </div>
         </section>
@@ -151,8 +201,11 @@
 
           <div class="voice-mic-box">
             <div class="mic-rings">
-              <button class="mic-btn" id="btnToggleMic" title="Toggle microphone listening" aria-label="Toggle microphone">
-                <svg><use href="#icon-mic"></use></svg>
+              <button class="mic-btn" id="btnToggleMic" title="Toggle microphone listening"
+                aria-label="Toggle microphone">
+                <svg>
+                  <use href="#icon-mic"></use>
+                </svg>
               </button>
             </div>
             <button id="micHintText" class="mic-hint">Turn on microphone</button>
@@ -175,7 +228,9 @@
           <details class="permission-details">
             <summary>Having trouble with your microphone?</summary>
             <button id="btnForceMicPrompt" class="btn-secondary permission-button">
-              <svg><use href="#icon-lock"></use></svg>
+              <svg>
+                <use href="#icon-lock"></use>
+              </svg>
               Check microphone access
             </button>
             <div id="diagnosticInfo" class="diagnostic-info"></div>
@@ -188,14 +243,13 @@
       <section class="ingredients-card">
         <div class="card-heading">
           <div>
-            <span class="section-kicker">Mise en place</span>
             <h2>Ingredients</h2>
           </div>
           <span id="ingredientCount" class="count-badge">0 items</span>
         </div>
-        <ul class="ingredients-list" id="ingredientsList">
-          <li class="empty-state">Ingredients will appear here once a recipe is loaded.</li>
-        </ul>
+        <div class="ingredients-list-container" id="ingredientsList">
+          <div class="empty-state">Ingredients will appear here once a recipe is loaded.</div>
+        </div>
       </section>
 
       <section class="activity-card">
@@ -204,7 +258,6 @@
             <span class="section-kicker">Session activity</span>
             <h2>Assistant log</h2>
           </div>
-          <svg class="heading-icon"><use href="#icon-list"></use></svg>
         </div>
         <div class="audit-log" id="auditLogDisplay">
           <div class="audit-entry">SousChef is ready for your recipe.</div>
@@ -215,9 +268,11 @@
 
   <footer>
     <span>SousChef</span>
-    <span>Designed for floury hands and busy kitchens. Photo by <a href="https://unsplash.com/@heftiba" target="_blank" rel="noreferrer">Toa Heftiba</a>.</span>
+    <span>Designed for floury hands and busy kitchens. Photo by <a href="https://unsplash.com/@heftiba" target="_blank"
+        rel="noreferrer">Toa Heftiba</a>.</span>
   </footer>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
+
 </html>

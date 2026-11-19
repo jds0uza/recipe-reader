@@ -355,13 +355,47 @@ main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
 .support-grid { display: grid; grid-template-columns: 1.25fr 0.75fr; gap: 1.25rem; margin: 1.25rem 0 4rem; }
 .ingredients-card, .activity-card { min-width: 0; padding: 1.5rem; border-radius: 1rem; }
 .heading-icon { color: var(--ink-faint); }
-.ingredients-list { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; max-height: 400px; margin-top: 1.25rem; overflow-y: auto; }
+.ingredients-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  max-height: 420px;
+  margin-top: 1.25rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.ingredient-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.ingredient-group-title {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--forest);
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ingredient-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
 .ingredient-item { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.75rem; background: var(--paper); border: 1px solid transparent; border-radius: 0.65rem; font-size: 0.82rem; transition: 160ms ease; }
 .ingredient-item:hover { border-color: var(--line); }
 .ingredient-item.checked { opacity: 0.48; text-decoration: line-through; }
 .ingredient-item input { margin-top: 0.22rem; accent-color: var(--forest); }
 .ingredient-text { flex: 1; }
 .ingredient-qty { color: var(--terracotta); font-weight: 700; }
+.ingredient-name { color: var(--ink); font-weight: 500; }
+.ingredient-notes { font-style: italic; color: var(--ink-soft); font-weight: 400; }
 .empty-state { grid-column: 1 / -1; padding: 2rem; color: var(--ink-faint); text-align: center; background: var(--paper); border-radius: 0.65rem; font-size: 0.82rem; }
 .audit-log { max-height: 285px; margin-top: 1.25rem; padding: 0.8rem; overflow-y: auto; color: var(--ink-soft); background: var(--paper); border-radius: 0.65rem; font: 0.72rem/1.55 monospace; }
 .audit-entry { padding: 0.35rem 0; border-bottom: 1px solid rgba(220,213,200,0.7); }
@@ -414,7 +448,7 @@ footer a { color: inherit; text-underline-offset: 0.18em; }
   .voice-card { display: block; padding: 1.2rem; }
   .command-section { border-top: 1px solid var(--line); }
   .support-grid { grid-template-columns: 1fr; margin-bottom: 2.5rem; }
-  .ingredients-list { grid-template-columns: 1fr; }
+  .ingredient-grid { grid-template-columns: 1fr; }
   footer { gap: 1rem; flex-direction: column; }
 }
 

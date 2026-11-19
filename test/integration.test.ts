@@ -23,7 +23,7 @@ test('Integration Test - End-to-End Voice Cooking Session', async (t) => {
   assert.equal(queryIntent.action, 'QUERY_INGREDIENT');
   const queryResult = sm.query_ingredient('chicken');
   assert.equal(queryResult.found, true);
-  assert.ok(queryResult.spokenText.includes('1 one half lbs of boneless skinless chicken breasts'));
+  assert.ok(queryResult.spokenText.includes('1 one half pounds of boneless skinless chicken breasts'));
 
   // 3. User says: "what is next" -> Starts Step 1
   const next1 = parseVoiceCommand('what is next');
