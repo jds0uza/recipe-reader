@@ -20,10 +20,10 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
     return { action: 'STOP', rawTranscript };
   }
 
-  // Next step
+  // Next step / Start recipe
   if (
-    /^(next|next\s+step|continue|done|finished|what(?:'?s|\s+is)\s+next|move\s+on|proceed)$/i.test(text) ||
-    /\b(next\s+step|what(?:'?s|\s+is)\s+next)\b/i.test(text)
+    /^(next|next\s+step|continue|done|finished|what(?:'?s|\s+is)\s+next|move\s+on|proceed|start|start\s+recipe|start\s+cooking|begin|begin\s+recipe|begin\s+cooking|let'?s\s+(?:cook|start|begin))$/i.test(text) ||
+    /\b(next\s+step|what(?:'?s|\s+is)\s+next|start\s+recipe|start\s+cooking|begin\s+recipe)\b/i.test(text)
   ) {
     return { action: 'NEXT_STEP', rawTranscript };
   }

@@ -439,7 +439,10 @@ function parseVoiceCommand(text) {
     return { action: 'STOP', rawTranscript: text };
   }
 
-  if (/^(next|next\s+step|continue|done|finished|what(?:'?s|\s+is)\s+next|move\s+on)$/i.test(clean) || /\b(next\s+step|what(?:'?s|\s+is)\s+next)\b/i.test(clean)) {
+  if (
+    /^(next|next\s+step|continue|done|finished|what(?:'?s|\s+is)\s+next|move\s+on|proceed|start|start\s+recipe|start\s+cooking|begin|begin\s+recipe|begin\s+cooking|let'?s\s+(?:cook|start|begin))$/i.test(clean) ||
+    /\b(next\s+step|what(?:'?s|\s+is)\s+next|start\s+recipe|start\s+cooking|begin\s+recipe)\b/i.test(clean)
+  ) {
     return { action: 'NEXT_STEP', rawTranscript: text };
   }
   if (/^(back|previous|previous\s+step|go\s+back)$/i.test(clean) || /\b(previous\s+step|go\s+back)\b/i.test(clean)) {

@@ -6,6 +6,10 @@ test('Voice Command Parser - Intent Classification', async (t) => {
   await t.test('classifies NEXT_STEP intents', () => {
     assert.equal(parseVoiceCommand('next').action, 'NEXT_STEP');
     assert.equal(parseVoiceCommand('next step').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('start recipe').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('start cooking').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('start').action, 'NEXT_STEP');
+    assert.equal(parseVoiceCommand('begin').action, 'NEXT_STEP');
     assert.equal(parseVoiceCommand('continue').action, 'NEXT_STEP');
     assert.equal(parseVoiceCommand('what is next').action, 'NEXT_STEP');
     assert.equal(parseVoiceCommand('done').action, 'NEXT_STEP');
