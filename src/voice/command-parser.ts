@@ -45,7 +45,10 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
   }
 
   // Jump to step: "jump to step 4", "go to step 2", "step 3"
-  const jumpMatch = text.match(/(?:jump\s+to|go\s+to|skip\s+to|step)\s+(?:step\s+)?(\d+)/i);
+  // Strictly anchored so instructions being read aloud (e.g. "Step 3: In a bowl...") aren't self-interpreted as jumps
+  const jumpMatch =
+    text.match(/^(?:please\s+)?(?:can\s+you\s+)?(?:jump\s+to|go\s+to|skip\s+to|take\s+me\s+to)\s+(?:step\s+)?(\d+)$/i) ||
+    text.match(/^step\s+(\d+)$/i);
   if (jumpMatch) {
     const stepIndex = parseInt(jumpMatch[1], 10);
     return { action: 'JUMP_TO_STEP', payload: { stepIndex }, rawTranscript };

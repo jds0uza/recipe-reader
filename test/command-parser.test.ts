@@ -32,6 +32,14 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     const res2 = parseVoiceCommand('go to step 2');
     assert.equal(res2.action, 'JUMP_TO_STEP');
     assert.equal(res2.payload?.stepIndex, 2);
+
+    const res3 = parseVoiceCommand('step 3');
+    assert.equal(res3.action, 'JUMP_TO_STEP');
+    assert.equal(res3.payload?.stepIndex, 3);
+
+    // Spoken sentences during narration must NOT trigger jump commands
+    const notJump = parseVoiceCommand('Step 3. Melt the butter in a large skillet over medium heat.');
+    assert.notEqual(notJump.action, 'JUMP_TO_STEP');
   });
 
   await t.test('classifies QUERY_INGREDIENT queries', () => {

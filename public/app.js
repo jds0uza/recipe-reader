@@ -449,7 +449,11 @@ function parseVoiceCommand(text) {
     return { action: 'REPEAT_STEP', rawTranscript: text };
   }
 
-  const jumpMatch = clean.match(/(?:jump\s+to|go\s+to|skip\s+to|step)\s+(?:step\s+)?(\d+)/i);
+  // Jump to step: "jump to step 4", "go to step 2", "step 3"
+  // Strictly anchored so instructions being read aloud (e.g. "Step 3: In a bowl...") aren't self-interpreted as jumps
+  const jumpMatch =
+    clean.match(/^(?:please\s+)?(?:can\s+you\s+)?(?:jump\s+to|go\s+to|skip\s+to|take\s+me\s+to)\s+(?:step\s+)?(\d+)$/i) ||
+    clean.match(/^step\s+(\d+)$/i);
   if (jumpMatch) {
     return { action: 'JUMP_TO_STEP', payload: { stepIndex: parseInt(jumpMatch[1], 10) }, rawTranscript: text };
   }
@@ -472,6 +476,7 @@ class SpeechManager {
     this.synth = window.speechSynthesis;
     this.isSpeaking = false;
     this.echoDecayUntil = 0;
+    this.currentSpokenText = '';
   }
 
   speak(text, onEnd) {
@@ -480,6 +485,7 @@ class SpeechManager {
       return;
     }
     this.stop();
+    this.currentSpokenText = text.toLowerCase();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.0;
@@ -497,19 +503,21 @@ class SpeechManager {
 
     utterance.onend = () => {
       this.isSpeaking = false;
-      this.echoDecayUntil = Date.now() + 650; // 650ms speaker echo cancellation cooldown
+      this.echoDecayUntil = Date.now() + 850; // 850ms speaker echo cancellation cooldown
       document.getElementById('speechStatusIndicator').style.display = 'none';
       if (onEnd) onEnd();
     };
 
     utterance.onerror = (e) => {
       this.isSpeaking = false;
-      this.echoDecayUntil = Date.now() + 200;
+      this.echoDecayUntil = Date.now() + 1000;
       document.getElementById('speechStatusIndicator').style.display = 'none';
       if (e.error !== 'interrupted' && e.error !== 'canceled') {
         console.error('TTS error:', e);
       }
-      if (onEnd) onEnd();
+      if (onEnd && e.error !== 'interrupted' && e.error !== 'canceled') {
+        onEnd();
+      }
     };
 
     this.synth.speak(utterance);
@@ -518,7 +526,7 @@ class SpeechManager {
   stop() {
     if (this.synth) {
       this.isSpeaking = false;
-      this.echoDecayUntil = Date.now() + 200;
+      this.echoDecayUntil = Date.now() + 1200; // 1.2s acoustic echo flush
       const indicator = document.getElementById('speechStatusIndicator');
       if (indicator) indicator.style.display = 'none';
       try {
@@ -651,6 +659,19 @@ class VoiceRecognitionManager {
         if (this.speechManager && (this.speechManager.isSpeaking || Date.now() < this.speechManager.echoDecayUntil)) {
           console.log(`[Echo Cancellation] Ignored speaker output: "${transcript}"`);
           return;
+        }
+
+        // Drop transcript if it matches or contains words from what was just read by the assistant
+        if (this.speechManager && this.speechManager.currentSpokenText) {
+          const cleanT = transcript.toLowerCase();
+          if (
+            cleanT.length > 3 &&
+            (this.speechManager.currentSpokenText.includes(cleanT) ||
+             (cleanT.startsWith('step ') && this.speechManager.currentSpokenText.startsWith('step ')))
+          ) {
+            console.log(`[Echo Cancellation] Ignored self-echo of step instruction: "${transcript}"`);
+            return;
+          }
         }
 
         // 3. COMMAND DEBOUNCE: Prevent rapid multi-firing
@@ -1101,6 +1122,11 @@ class RecipeApp {
     const targetIdx = stepNumber - 1;
     if (targetIdx < 0 || targetIdx >= this.recipe.steps.length) {
       this.speech.speak(`Step ${stepNumber} does not exist in this recipe.`);
+      return;
+    }
+    // Prevent acoustic loop if already reading or on this step
+    if (this.currentStepIndex === targetIdx && (this.status === 'READING_STEP' || this.speech.isSpeaking)) {
+      console.log(`[Jump Guard] Already on step ${stepNumber}, ignoring redundant jump.`);
       return;
     }
     this.currentStepIndex = targetIdx;
