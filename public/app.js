@@ -307,6 +307,125 @@ class WebAudioEffects {
       osc.stop(start + 0.35);
     });
   }
+  playMeow() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const oscHarmonic = ctx.createOscillator();
+      const vibrato = ctx.createOscillator();
+      const vibratoGain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+
+      // Pitch vibrato (cute gentle wobble on the high note)
+      vibrato.frequency.setValueAtTime(5.8, now);
+      vibratoGain.gain.setValueAtTime(0, now);
+      vibratoGain.gain.linearRampToValueAtTime(14, now + 0.18);
+      vibratoGain.gain.linearRampToValueAtTime(0, now + 0.42);
+      vibrato.connect(vibratoGain);
+      vibratoGain.connect(osc.frequency);
+      vibratoGain.connect(oscHarmonic.frequency);
+
+      // Warm triangle wave for organic sweetness
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(760, now + 0.14);
+      osc.frequency.exponentialRampToValueAtTime(720, now + 0.28);
+      osc.frequency.exponentialRampToValueAtTime(480, now + 0.50);
+
+      // Subtle sine overtone for vocal warmth
+      oscHarmonic.type = 'sine';
+      oscHarmonic.frequency.setValueAtTime(900, now);
+      oscHarmonic.frequency.exponentialRampToValueAtTime(1520, now + 0.14);
+      oscHarmonic.frequency.exponentialRampToValueAtTime(960, now + 0.50);
+
+      // Lowpass filter for warm, rounded kitten tone
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1200, now);
+      filter.frequency.linearRampToValueAtTime(2200, now + 0.16);
+      filter.frequency.exponentialRampToValueAtTime(900, now + 0.50);
+      filter.Q.setValueAtTime(1.8, now);
+
+      // Gentle envelope: soft attack, warm sustain, gentle release
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.20, now + 0.08);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.26);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.50);
+
+      osc.connect(filter);
+      oscHarmonic.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      oscHarmonic.start(now);
+      vibrato.start(now);
+
+      osc.stop(now + 0.50);
+      oscHarmonic.stop(now + 0.50);
+      vibrato.stop(now + 0.50);
+    } catch {}
+  }
+  playPurr() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      // Authentic cat purr: deep ~58Hz base tone modulated with 24Hz laryngeal flutter
+      const carrier = ctx.createOscillator();
+      const carrier2 = ctx.createOscillator();
+      const mod = ctx.createOscillator();
+      const modGain = ctx.createGain();
+      const tremolo = ctx.createGain();
+      const masterGain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      carrier.type = 'triangle';
+      carrier.frequency.setValueAtTime(58, now);
+      carrier.frequency.linearRampToValueAtTime(62, now + 0.3);
+      carrier.frequency.linearRampToValueAtTime(56, now + 0.7);
+
+      carrier2.type = 'sine';
+      carrier2.frequency.setValueAtTime(116, now);
+      carrier2.frequency.linearRampToValueAtTime(124, now + 0.3);
+      carrier2.frequency.linearRampToValueAtTime(112, now + 0.7);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(260, now);
+
+      // 24 Hz laryngeal vibration flutter
+      mod.type = 'sawtooth';
+      mod.frequency.setValueAtTime(24, now);
+
+      tremolo.gain.setValueAtTime(0.5, now);
+      modGain.gain.setValueAtTime(0.5, now);
+      mod.connect(modGain);
+      modGain.connect(tremolo.gain);
+
+      masterGain.gain.setValueAtTime(0.0001, now);
+      masterGain.gain.linearRampToValueAtTime(0.24, now + 0.1);
+      masterGain.gain.linearRampToValueAtTime(0.20, now + 0.5);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+
+      carrier.connect(tremolo);
+      carrier2.connect(tremolo);
+      tremolo.connect(filter);
+      filter.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      carrier.start(now);
+      carrier2.start(now);
+      mod.start(now);
+
+      carrier.stop(now + 0.75);
+      carrier2.stop(now + 0.75);
+      mod.stop(now + 0.75);
+    } catch {}
+  }
 }
 
 // --- Voice Command Intent Matcher ---
@@ -658,6 +777,9 @@ class VoiceRecognitionManager {
 
   sleep(reasonText) {
     this.stop();
+    if (this.app?.showCatBubble) {
+      this.app.showCatBubble('Zzz... 💤', 2200);
+    }
     if (this.recognition) {
       try {
         this.recognition.onstart = null;
@@ -672,11 +794,11 @@ class VoiceRecognitionManager {
     const displayEl = document.getElementById('liveTranscriptDisplay');
     const micHint = document.getElementById('micHintText');
     if (micStatus) {
-      micStatus.innerText = 'Sleeping (Inactive)';
-      micStatus.style.color = 'var(--text-muted)';
+      micStatus.innerText = 'Mic paused (Kitty sleeping)';
+      micStatus.style.color = '';
     }
     if (micHint) {
-      micHint.innerText = 'Turn on microphone';
+      micHint.innerText = 'Wake up Kitty to resume';
     }
     if (displayEl && reasonText) {
       displayEl.innerText = reasonText;
@@ -703,17 +825,17 @@ class VoiceRecognitionManager {
     if (this.isListening) {
       if (micBtn) micBtn.classList.add('active');
       if (micStatus) {
-        micStatus.innerText = 'Listening Continuously';
-        micStatus.style.color = 'var(--accent-secondary)';
+        micStatus.innerText = 'Listening Continuously (Kitty awake!)';
+        micStatus.style.color = 'var(--terracotta)';
       }
-      if (micHint) micHint.innerText = 'Tap mic to pause listening';
+      if (micHint) micHint.innerText = 'Tap Kitty to pause listening';
     } else {
       if (micBtn) micBtn.classList.remove('active');
       if (micStatus) {
-        micStatus.innerText = 'Mic off';
-        micStatus.style.color = 'var(--text-muted)';
+        micStatus.innerText = 'Mic off (Kitty sleeping)';
+        micStatus.style.color = '';
       }
-      if (micHint) micHint.innerText = 'Turn on microphone';
+      if (micHint) micHint.innerText = 'Wake up Kitty to listen';
     }
   }
 }
@@ -724,6 +846,8 @@ class RecipeApp {
     this.soundEffects = new WebAudioEffects();
     this.speech = new SpeechManager();
     this.voiceRecognition = new VoiceRecognitionManager(this.speech, (intent) => this.handleVoiceIntent(intent));
+    this.voiceRecognition.app = this;
+    this.catBubbleTimer = null;
 
     // Core State Machine variables
     this.status = 'IDLE';
@@ -785,7 +909,21 @@ class RecipeApp {
 
     // Mic Toggle (Button & Subtitle Hint)
     const toggleMic = () => {
-      this.soundEffects.playClick();
+      if (!this.voiceRecognition.isListening) {
+        // Randomly choose between a sweet meow, friendly chirp, or cozy purr
+        const wakeVariants = [
+          { sound: () => this.soundEffects.playMeow(), text: 'Meow! 🐾' },
+          { sound: () => this.soundEffects.playMeow(), text: 'Mrrp! ✨' },
+          { sound: () => this.soundEffects.playPurr(), text: 'Purrr... 💕' },
+          { sound: () => this.soundEffects.playPurr(), text: 'Prrr! 🐾' }
+        ];
+        const chosen = wakeVariants[Math.floor(Math.random() * wakeVariants.length)];
+        chosen.sound();
+        this.showCatBubble(chosen.text, 2200);
+      } else {
+        this.soundEffects.playPurr();
+        this.showCatBubble('Zzz... 💤', 1800);
+      }
       this.voiceRecognition.toggle();
     };
     document.getElementById('btnToggleMic').addEventListener('click', toggleMic);
@@ -883,6 +1021,17 @@ class RecipeApp {
       const val = e.target.value;
       if (val) this.loadSampleRecipe(val);
     });
+  }
+
+  showCatBubble(text, durationMs = 2200) {
+    const bubble = document.getElementById('catBubble');
+    if (!bubble) return;
+    bubble.innerText = text;
+    bubble.classList.add('visible');
+    clearTimeout(this.catBubbleTimer);
+    this.catBubbleTimer = setTimeout(() => {
+      bubble.classList.remove('visible');
+    }, durationMs);
   }
 
   // --- Core State Machine Transitions ---
