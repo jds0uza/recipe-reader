@@ -119,21 +119,38 @@ export function extractHtmlIngredientGroups(html: string): Array<{ title?: strin
 }
 
 /**
+ * Decodes all HTML entities and strips any embedded HTML tags
+ */
+export function cleanText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&#39;|&apos;|&rsquo;|&lsquo;/g, "'")
+    .replace(/&quot;|&ldquo;|&rdquo;/g, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
+    .replace(/&deg;/g, '°')
+    .replace(/&#(\d+);/g, (_, code) => {
+      try { return String.fromCharCode(parseInt(code, 10)); } catch { return _; }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => {
+      try { return String.fromCharCode(parseInt(code, 16)); } catch { return _; }
+    })
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Decodes HTML entities and strips blog artifact phrases (e.g. "recipe video above", "jump to recipe")
  */
 export function cleanRecipeDescription(text: string): string {
   if (!text) return '';
 
-  let cleaned = text
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
-    .replace(/<[^>]+>/g, '')
+  let cleaned = cleanText(text)
     .replace(/\b(?:watch|see)\s+(?:the\s+)?(?:recipe\s+)?video\s+(?:above|below|here)[^.]*\.?/gi, '')
     .replace(/\b(?:jump|scroll)\s+to\s+(?:the\s+)?recipe[^.]*\.?/gi, '')
     .replace(/\b(?:recipe\s+video\s+above)[^.]*\.?/gi, '')
@@ -179,7 +196,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
   let currentGroup: string | undefined = undefined;
 
   for (let idx = 0; idx < rawIngredients.length; idx++) {
-    const raw = String(rawIngredients[idx]).trim();
+    const raw = cleanText(String(rawIngredients[idx]));
     if (!raw) continue;
 
     if (isIngredientHeader(raw)) {
@@ -200,7 +217,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
 
   const processInstructionItem = (item: any) => {
     if (typeof item === 'string') {
-      const text = item.trim();
+      const text = cleanText(item);
       if (text) {
         steps.push({
           id: steps.length + 1,
@@ -209,7 +226,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
       }
     } else if (item && typeof item === 'object') {
       if (item['@type'] === 'HowToStep' || item.text) {
-        const text = (item.text || item.description || '').trim();
+        const text = cleanText(item.text || item.description || '');
         if (text) {
           steps.push({
             id: steps.length + 1,
@@ -228,7 +245,7 @@ export function parseRecipeFromSchema(jsonLd: any, sourceUrl?: string): Recipe {
     // Split by newlines or numbered steps
     rawInstructions
       .split(/\n+/)
-      .map(s => s.replace(/^\d+[\.\)]\s*/, '').trim())
+      .map(s => cleanText(s.replace(/^\d+[\.\)]\s*/, '')))
       .filter(Boolean)
       .forEach(text => {
         steps.push({

@@ -10,6 +10,29 @@ const UNICODE_FRACTIONS = {
   '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875
 };
 
+function cleanText(text) {
+  if (!text) return '';
+  return text
+    .replace(/&#39;|&apos;|&rsquo;|&lsquo;/g, "'")
+    .replace(/&quot;|&ldquo;|&rdquo;/g, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&ndash;/g, '–')
+    .replace(/&mdash;/g, '—')
+    .replace(/&deg;/g, '°')
+    .replace(/&#(\d+);/g, (_, code) => {
+      try { return String.fromCharCode(parseInt(code, 10)); } catch { return _; }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => {
+      try { return String.fromCharCode(parseInt(code, 16)); } catch { return _; }
+    })
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function formatQuantityFraction(qty) {
   if (qty <= 0) return '0';
   const tolerance = 0.04;
@@ -1061,7 +1084,22 @@ class RecipeApp {
   // --- Core State Machine Transitions ---
   loadRecipe(recipeData) {
     this.speech.stop();
-    this.recipe = JSON.parse(JSON.stringify(recipeData));
+    const recipe = JSON.parse(JSON.stringify(recipeData));
+    if (recipe.title) recipe.title = cleanText(recipe.title);
+    if (recipe.description) recipe.description = cleanText(recipe.description);
+    if (Array.isArray(recipe.steps)) {
+      recipe.steps.forEach(s => {
+        if (s.instruction) s.instruction = cleanText(s.instruction);
+      });
+    }
+    if (Array.isArray(recipe.ingredients)) {
+      recipe.ingredients.forEach(i => {
+        if (i.name) i.name = cleanText(i.name);
+        if (i.notes) i.notes = cleanText(i.notes);
+        if (i.group) i.group = cleanText(i.group);
+      });
+    }
+    this.recipe = recipe;
     this.currentStepIndex = -1;
     this.status = 'READY';
     this.recordAudit(`Loaded recipe: "${this.recipe.title}" (${this.recipe.steps.length} steps)`);
@@ -1163,7 +1201,7 @@ class RecipeApp {
     const step = this.recipe.steps[this.currentStepIndex];
     if (!step) return;
 
-    const textToSpeak = `Step ${step.id}. ${expandTextForSpeech(step.instruction)}`;
+    const textToSpeak = `Step ${step.id}. ${expandTextForSpeech(cleanText(step.instruction))}`;
     this.speech.speak(textToSpeak, () => {
       this.status = 'AWAITING_INPUT';
       this.updateStatusBadge();
@@ -1388,7 +1426,7 @@ class RecipeApp {
     } else {
       const step = this.recipe.steps[this.currentStepIndex];
       if (stepCounterEl) stepCounterEl.innerText = `Step ${step.id} of ${this.recipe.steps.length}`;
-      if (instructionEl) instructionEl.innerText = step.instruction;
+      if (instructionEl) instructionEl.innerText = cleanText(step.instruction);
 
       const pct = Math.round(((this.currentStepIndex + 1) / this.recipe.steps.length) * 100);
       if (progressBar) progressBar.style.width = `${pct}%`;

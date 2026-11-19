@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   parseIsoDuration,
   parseRecipeServings,
-  extractRecipeFromHtml
+  extractRecipeFromHtml,
+  cleanText
 } from '../src/core/recipe-parser.ts';
 import { SAMPLE_JSON_LD_HTML } from '../src/fixtures/sample-recipes.ts';
 
@@ -107,5 +108,11 @@ test('Recipe Parser - Schema.org HTML Extraction', async (t) => {
     assert.equal(recipe.ingredients[1].group, 'Meatballs');
     assert.equal(recipe.ingredients[2].group, 'Onion Gravy');
     assert.equal(recipe.ingredients[3].group, 'Onion Gravy');
+  });
+
+  await t.test('decodes HTML entities in instructions and ingredients', () => {
+    assert.equal(cleanText("Don&#39;t overmix the batter."), "Don't overmix the batter.");
+    assert.equal(cleanText("Cook until it&rsquo;s golden brown &amp; crispy."), "Cook until it's golden brown & crispy.");
+    assert.equal(cleanText("Bake at 350&deg;F until you&#x27;re ready."), "Bake at 350°F until you're ready.");
   });
 });
