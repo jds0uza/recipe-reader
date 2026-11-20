@@ -1,64 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <defs>
-    <filter id="shadow192" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#0b1e16" flood-opacity="0.35"/>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.4"/>
     </filter>
   </defs>
-
-  <!-- Background in signature kitchen forest green -->
-  <rect width="192" height="192" rx="42" fill="#214D3B" />
-  <rect x="8" y="8" width="176" height="176" rx="36" fill="#265944" stroke="#367a5e" stroke-width="2.5" />
-
-  <!-- Chef Cat Group -->
-  <g transform="translate(16, 12)" filter="url(#shadow192)">
-    <!-- Ears -->
-    <polygon points="34,76 22,34 58,56" fill="#F4A261" stroke="#E76F51" stroke-width="2.5" stroke-linejoin="round" />
-    <polygon points="36,70 28,42 54,58" fill="#FFCCD5" />
-
-    <polygon points="126,76 138,34 102,56" fill="#F4A261" stroke="#E76F51" stroke-width="2.5" stroke-linejoin="round" />
-    <polygon points="124,70 132,42 106,58" fill="#FFCCD5" />
-
-    <!-- Head -->
-    <ellipse cx="80" cy="92" rx="54" ry="46" fill="#F4A261" />
-
-    <!-- Cheeks & Muzzle Patch -->
-    <ellipse cx="80" cy="104" rx="34" ry="24" fill="#FFF3E0" />
-
-    <!-- Forehead Stripes -->
-    <path d="M 80 58 L 80 68 M 70 61 L 72 70 M 90 61 L 88 70" stroke="#E76F51" stroke-width="3" stroke-linecap="round" />
-
-    <!-- Chef Toque Hat -->
-    <g class="chef-hat">
-      <rect x="62" y="44" width="36" height="10" rx="4" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2" />
-      <!-- Puffs -->
-      <path d="M 62 44 C 54 36 56 20 68 20 C 70 12 90 12 92 20 C 104 20 106 36 98 44 Z" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2" />
-      <path d="M 74 26 C 76 34 76 40 76 44 M 86 26 C 86 34 86 40 86 44" stroke="#F3F4F6" stroke-width="2" stroke-linecap="round" />
-    </g>
-
-    <!-- Eyes (Happy kawaii sparkles) -->
-    <g class="eyes">
-      <ellipse cx="58" cy="90" rx="9" ry="10" fill="#1E293B" />
-      <ellipse cx="56" cy="87" rx="3.5" ry="4" fill="#FFFFFF" />
-      <circle cx="61" cy="93" r="1.8" fill="#FFFFFF" />
-
-      <ellipse cx="102" cy="90" rx="9" ry="10" fill="#1E293B" />
-      <ellipse cx="100" cy="87" rx="3.5" ry="4" fill="#FFFFFF" />
-      <circle cx="105" cy="93" r="1.8" fill="#FFFFFF" />
-    </g>
-
-    <!-- Pink Cheeks -->
-    <ellipse cx="44" cy="100" rx="7" ry="4.5" fill="#FF85A1" opacity="0.65" />
-    <ellipse cx="116" cy="100" rx="7" ry="4.5" fill="#FF85A1" opacity="0.65" />
-
-    <!-- Nose & Mouth -->
-    <polygon points="76,98 84,98 80,103" fill="#E76F51" />
-    <path d="M 74 104 Q 80 102 86 104 Q 80 114 74 104 Z" fill="#991B1B" />
-    <path d="M 76 107 Q 80 105 84 107 Q 80 113 76 107 Z" fill="#F87171" />
-
-    <!-- Whiskers -->
-    <line x1="36" y1="96" x2="16" y2="93" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
-    <line x1="35" y1="102" x2="14" y2="105" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
-    <line x1="124" y1="96" x2="144" y2="93" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
-    <line x1="125" y1="102" x2="146" y2="105" stroke="#6B7280" stroke-width="2" stroke-linecap="round" />
+  <!-- Background with rounded corners for maskable icon -->
+  <rect width="192" height="192" rx="36" fill="#0f172a" />
+  <rect x="8" y="8" width="176" height="176" rx="30" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+  
+  <!-- Chef Hat & Spoon Icon -->
+  <g transform="translate(36, 32)" filter="url(#shadow)">
+    <!-- Chef Hat Base -->
+    <path d="M20 90 L100 90 L95 106 L25 106 Z" fill="url(#grad)" />
+    <rect x="23" y="100" width="74" height="4" rx="2" fill="#fff" opacity="0.4"/>
+    <!-- Chef Hat Puffs -->
+    <path d="M25 88 C10 88 5 65 20 55 C12 40 30 25 45 35 C55 18 75 18 85 32 C98 25 112 38 105 55 C118 68 110 88 95 88 Z" fill="url(#grad)" />
+    <!-- Audio Wave Lines (Voice Interface Badge) -->
+    <path d="M40 65 L40 75 M50 58 L50 82 M60 52 L60 88 M70 58 L70 82 M80 65 L80 75" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
   </g>
 </svg>
