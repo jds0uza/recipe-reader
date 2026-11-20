@@ -94,46 +94,83 @@ svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-
 .brand strong { font-family: "Newsreader", serif; font-size: 1.55rem; font-weight: 600; }
 .brand small { margin-top: 0.18rem; color: var(--ink-soft); font-size: 0.74rem; }
 
-.utility-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.65rem 0.9rem;
-  color: var(--ink-soft);
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: 160ms ease;
+/* Assistant Screen Wake Lock Control */
+.assistant-wake-control {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
 }
 
-.utility-button:hover { color: var(--forest); background: var(--surface); border-color: #b9c5bd; }
-.utility-button.active { color: white; background: var(--forest); border-color: var(--forest); }
-.utility-button.is-pending { cursor: wait; opacity: 0.72; }
+.assistant-wake-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  color: var(--ink-soft);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 160ms ease;
+  user-select: none;
+}
 
-.wake-lock-control { position: relative; display: flex; justify-content: flex-end; }
+.assistant-wake-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  flex-shrink: 0;
+  transition: stroke 160ms ease;
+}
+
+.assistant-wake-btn:hover {
+  color: var(--forest);
+  background: var(--surface);
+  border-color: #b9c5bd;
+}
+
+.assistant-wake-btn.is-active {
+  color: #ffffff;
+  background: var(--forest);
+  border-color: var(--forest);
+  box-shadow: 0 2px 8px rgba(33, 77, 59, 0.18);
+}
+
+.assistant-wake-btn.is-active svg {
+  stroke: #ffffff;
+}
+
 .wake-lock-message {
   position: absolute;
   z-index: 10;
-  top: calc(100% + 0.55rem);
-  right: 0;
+  top: calc(100% + 0.35rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(-0.25rem);
   width: max-content;
-  max-width: min(320px, calc(100vw - 2rem));
-  padding: 0.65rem 0.8rem;
+  max-width: min(280px, calc(100vw - 2rem));
+  padding: 0.45rem 0.65rem;
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 0.6rem;
+  border-radius: 0.5rem;
   box-shadow: var(--shadow-card);
-  font-size: 0.72rem;
-  line-height: 1.4;
+  font-size: 0.7rem;
+  line-height: 1.35;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-0.25rem);
   transition: 160ms ease;
 }
-.wake-lock-message:not(:empty) { opacity: 1; transform: translateY(0); }
+
+.wake-lock-message:not(:empty) {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
 
@@ -620,8 +657,7 @@ footer a { color: inherit; text-underline-offset: 0.18em; }
 @media (max-width: 720px) {
   .site-header, main, footer { width: min(100% - 1.25rem, 1440px); }
   .site-header { min-height: 70px; }
-  .brand small, .utility-button > span { display: none; }
-  .utility-button { width: 2.75rem; height: 2.75rem; padding: 0; justify-content: center; }
+  .brand small { display: none; }
   .recipe-loader { min-height: 0; padding: 2rem 1rem; border-radius: 1rem; }
   .recipe-loader::after { inset: 0.55rem; }
   .loader-copy h1 { font-size: 2.6rem; }

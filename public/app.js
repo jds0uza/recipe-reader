@@ -1574,31 +1574,63 @@ class ScreenWakeLockManager {
     if (wakeLockBtn) {
       if ('wakeLock' in navigator) {
         wakeLockBtn.addEventListener('click', () => this.toggleWakeLock(wakeLockBtn));
+        document.addEventListener('visibilitychange', async () => {
+          if (this.wakeLock !== null && document.visibilityState === 'visible') {
+            try {
+              this.wakeLock = await navigator.wakeLock.request('screen');
+            } catch (err) {
+              console.warn('Re-acquiring wake lock failed:', err);
+            }
+          }
+        });
       } else {
-        wakeLockBtn.style.display = 'none'; // Unsupported browser
+        const control = wakeLockBtn.closest('.assistant-wake-control') || wakeLockBtn;
+        control.style.display = 'none'; // Unsupported browser
       }
     }
   }
 
   async toggleWakeLock(btn) {
+    const label = document.getElementById('wakeLockLabel');
     try {
       if (!this.wakeLock) {
         this.wakeLock = await navigator.wakeLock.request('screen');
-        btn.innerText = '👁️ Keep Awake: ON';
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-secondary');
+        btn.setAttribute('aria-pressed', 'true');
+        btn.classList.add('is-active');
+        if (label) {
+          label.textContent = 'Screen stays awake';
+        } else {
+          btn.innerText = '👁️ Screen stays awake';
+        }
+
         this.wakeLock.addEventListener('release', () => {
           this.wakeLock = null;
-          btn.innerText = '👁️ Keep Awake: Off';
-          btn.classList.remove('btn-primary');
-          btn.classList.add('btn-secondary');
+          btn.setAttribute('aria-pressed', 'false');
+          btn.classList.remove('is-active');
+          if (label) {
+            label.textContent = 'Keep screen awake';
+          } else {
+            btn.innerText = '👁️ Keep screen awake';
+          }
         });
       } else {
         await this.wakeLock.release();
         this.wakeLock = null;
+        btn.setAttribute('aria-pressed', 'false');
+        btn.classList.remove('is-active');
+        if (label) {
+          label.textContent = 'Keep screen awake';
+        } else {
+          btn.innerText = '👁️ Keep screen awake';
+        }
       }
     } catch (err) {
       console.warn('Wake Lock error:', err);
+      const msg = document.getElementById('wakeLockMessage');
+      if (msg) {
+        msg.textContent = 'Could not keep screen awake';
+        setTimeout(() => { msg.textContent = ''; }, 3000);
+      }
     }
   }
 }

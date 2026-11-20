@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f5f1e8" />
   <title>SousChef — Hands-free recipe guidance</title>
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="stylesheet" href="style.css?v=14" />
+  <link rel="stylesheet" href="style.css?v=15" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
 </head>
 
@@ -70,16 +70,6 @@
         <small>Your hands-free cooking companion</small>
       </span>
     </a>
-    <div class="wake-lock-control">
-      <button id="btnWakeLock" class="utility-button" type="button" aria-pressed="false"
-        title="Prevent the screen from sleeping while cooking">
-        <svg>
-          <use href="#icon-eye"></use>
-        </svg>
-        <span>Keep screen awake</span>
-      </button>
-      <span id="wakeLockMessage" class="wake-lock-message" role="status" aria-live="polite"></span>
-    </div>
   </header>
 
   <main>
@@ -327,6 +317,16 @@
             <div class="speech-live-text" id="liveTranscriptDisplay" aria-live="polite">
               I’ll listen for commands while you cook.
             </div>
+            <div class="assistant-wake-control">
+              <button id="btnWakeLock" class="assistant-wake-btn" type="button" aria-pressed="false"
+                title="Prevent screen from sleeping while cooking">
+                <svg class="wake-icon" aria-hidden="true">
+                  <use href="#icon-eye"></use>
+                </svg>
+                <span id="wakeLockLabel">Keep screen awake</span>
+              </button>
+              <span id="wakeLockMessage" class="wake-lock-message" role="status" aria-live="polite"></span>
+            </div>
           </div>
 
           <div class="command-section">
@@ -388,7 +388,7 @@
         rel="noreferrer">Toa Heftiba</a>.</span>
   </footer>
 
-  <script type="module" src="app.js?v=14"></script>
+  <script type="module" src="app.js?v=15"></script>
 </body>
 
 </html>
