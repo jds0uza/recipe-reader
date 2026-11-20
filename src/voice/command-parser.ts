@@ -6,11 +6,146 @@
 
 import type { VoiceCommandIntent } from '../core/types.ts';
 
+/**
+ * Parses spoken duration formats into total seconds.
+ * Supports patterns like "10 minutes", "1 minute 30 seconds", "45 seconds", "1.5 hours", "half an hour".
+ */
+export function parseDurationSeconds(text: string): number | null {
+  const clean = text.toLowerCase().trim();
+  if (!clean) return null;
+
+  if (/\b(?:half\s+(?:an?\s+)?hour)\b/i.test(clean)) return 1800;
+  if (/\b(?:quarter\s+(?:of\s+an?\s+)?hour)\b/i.test(clean)) return 900;
+  if (/\b(?:an?\s+hour\s+and\s+a\s+half)\b/i.test(clean)) return 5400;
+  if (/\b(?:an?\s+hour)\b/i.test(clean) && !/\d+\s*hours?/i.test(clean)) return 3600;
+  if (/\b(?:a\s+minute)\b/i.test(clean) && !/\d+\s*minutes?/i.test(clean)) return 60;
+
+  // Word numbers (e.g. "one minute", "ten minutes", "five minutes")
+  const wordMap: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fortyfive: 45, fifty: 50
+  };
+
+  let normalized = clean;
+  for (const [w, n] of Object.entries(wordMap)) {
+    const rx = new RegExp(`\\b${w}\\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)\\b`, 'gi');
+    normalized = normalized.replace(rx, `${n} $1`);
+  }
+
+  let totalSeconds = 0;
+  let matchedAny = false;
+
+  const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)\b/i);
+  if (hourMatch) {
+    totalSeconds += Math.round(parseFloat(hourMatch[1]) * 3600);
+    matchedAny = true;
+  }
+
+  const minMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?)\b/i);
+  if (minMatch) {
+    totalSeconds += Math.round(parseFloat(minMatch[1]) * 60);
+    matchedAny = true;
+  }
+
+  const secMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:seconds?|secs?)\b/i);
+  if (secMatch) {
+    totalSeconds += Math.round(parseFloat(secMatch[1]));
+    matchedAny = true;
+  }
+
+  return matchedAny && totalSeconds > 0 ? totalSeconds : null;
+}
+
+/**
+ * Extracts potential timer durations from recipe step text.
+ * Matches phrases like "bake for 20 to 25 minutes", "simmer 15 minutes", "rest 1 hour", "for 45 seconds".
+ */
+export function extractStepTimers(instruction: string): Array<{ durationSeconds: number; label: string; text: string }> {
+  if (!instruction) return [];
+  const results: Array<{ durationSeconds: number; label: string; text: string }> = [];
+  const seenSeconds = new Set<number>();
+
+  // Match range durations: e.g. "20 to 25 minutes", "3-4 mins"
+  const rangeRegex = /\b(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)\b/gi;
+  let rangeMatch: RegExpExecArray | null;
+  while ((rangeMatch = rangeRegex.exec(instruction)) !== null) {
+    const val1 = parseFloat(rangeMatch[1]);
+    const val2 = parseFloat(rangeMatch[2]);
+    const unit = rangeMatch[3].toLowerCase();
+    const multiplier = unit.startsWith('h') ? 3600 : unit.startsWith('s') ? 1 : 60;
+    const unitLabel = unit.startsWith('h') ? 'hr' : unit.startsWith('s') ? 'sec' : 'min';
+
+    const s1 = Math.round(val1 * multiplier);
+    if (!seenSeconds.has(s1) && s1 > 0) {
+      seenSeconds.add(s1);
+      results.push({ durationSeconds: s1, label: `${val1} ${unitLabel}`, text: rangeMatch[0] });
+    }
+    const s2 = Math.round(val2 * multiplier);
+    if (!seenSeconds.has(s2) && s2 > 0) {
+      seenSeconds.add(s2);
+      results.push({ durationSeconds: s2, label: `${val2} ${unitLabel}`, text: rangeMatch[0] });
+    }
+  }
+
+  // Match single durations: e.g. "15 minutes", "1 hour", "45 seconds"
+  const singleRegex = /\b(?:for|simmer|bake|cook|boil|roast|rest|chill|wait|steep)?\s*(?:about\s+|approximately\s+)?(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)\b/gi;
+  let singleMatch: RegExpExecArray | null;
+  while ((singleMatch = singleRegex.exec(instruction)) !== null) {
+    const val = parseFloat(singleMatch[1]);
+    const unit = singleMatch[2].toLowerCase();
+    const multiplier = unit.startsWith('h') ? 3600 : unit.startsWith('s') ? 1 : 60;
+    const unitLabel = unit.startsWith('h') ? 'hr' : unit.startsWith('s') ? 'sec' : 'min';
+    const s = Math.round(val * multiplier);
+    if (!seenSeconds.has(s) && s > 0) {
+      seenSeconds.add(s);
+      results.push({ durationSeconds: s, label: `${val} ${unitLabel}`, text: singleMatch[0].trim() });
+    }
+  }
+
+  return results;
+}
+
 export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
   const text = rawTranscript.trim().toLowerCase();
 
   if (!text) {
     return { action: 'UNKNOWN', rawTranscript };
+  }
+
+  // Cancel / Clear Timer: "cancel timer", "stop timer", "clear timer"
+  if (
+    /\b(?:cancel|clear|delete|remove)\s+(?:the\s+)?timer\b/i.test(text) ||
+    /^(?:cancel|stop)\s+(?:the\s+)?timer$/i.test(text)
+  ) {
+    return { action: 'CANCEL_TIMER', rawTranscript };
+  }
+
+  // Check Timer: "check timer", "how much time is left", "time left", "timer status"
+  if (
+    /\b(?:check\s+timer|timer\s+status|how\s+much\s+time(?:\s+is)?\s+left|how\s+long\s+left|time\s+left(?:\s+on\s+timer)?|is\s+the\s+timer\s+done)\b/i.test(text) ||
+    /^(?:timer|check\s+timers?)$/i.test(text)
+  ) {
+    return { action: 'CHECK_TIMER', rawTranscript };
+  }
+
+  // Set Timer: "set a timer for 10 minutes", "set 5 minute timer", "pasta timer 8 minutes"
+  if (/\btimer\b/i.test(text)) {
+    const durationSeconds = parseDurationSeconds(text);
+    if (durationSeconds && durationSeconds > 0) {
+      let timerLabel = 'Timer';
+      const labelMatch = text.match(/(?:set|start|create)\s+(?:a\s+)?([a-z0-9\s]+?)\s+timer/i);
+      const labelAfterMatch = text.match(/timer\s+for\s+([a-z]+)\s+for/i);
+      if (labelAfterMatch && labelAfterMatch[1]) {
+        timerLabel = labelAfterMatch[1].trim();
+      } else if (labelMatch && !['kitchen', 'cooking', 'new', 'quick', ''].includes(labelMatch[1].trim())) {
+        timerLabel = labelMatch[1].trim();
+      }
+      return {
+        action: 'SET_TIMER',
+        payload: { durationSeconds, timerLabel },
+        rawTranscript
+      };
+    }
   }
 
   // Stop / Pause / Silence (Top priority to interrupt speech)

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f5f1e8" />
   <title>SousChef — Hands-free recipe guidance</title>
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="stylesheet" href="style.css?v=15" />
+  <link rel="stylesheet" href="style.css?v=16" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
 </head>
 
@@ -45,6 +45,10 @@
     </symbol>
     <symbol id="icon-stop" viewBox="0 0 24 24">
       <rect x="6" y="6" width="12" height="12" rx="2" />
+    </symbol>
+    <symbol id="icon-timer" viewBox="0 0 24 24">
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l2.5 1.5M10 2h4M12 2v3" />
     </symbol>
     <symbol id="icon-list" viewBox="0 0 24 24">
       <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
@@ -144,6 +148,10 @@
           <div class="step-body" id="stepBodyContent">
             <div id="stepInstructionText" class="step-instruction">
               When you are ready, start the recipe or say “Next.”
+            </div>
+            <div class="step-timer-suggestion" id="stepTimerSuggestion" hidden>
+              <span class="step-timer-hint">Detected timer:</span>
+              <div class="step-timer-chips" id="stepTimerChips"></div>
             </div>
           </div>
 
@@ -329,13 +337,24 @@
             </div>
           </div>
 
+          <div id="activeTimersContainer" class="active-timers-container" hidden>
+            <div class="active-timers-header">
+              <span class="active-timers-title">
+                <svg><use href="#icon-timer"></use></svg>
+                Cooking Timers
+              </span>
+            </div>
+            <div id="activeTimersList" class="active-timers-list"></div>
+          </div>
+
           <div class="command-section">
             <span>Try saying</span>
             <div class="voice-command-chips">
               <button class="voice-chip" data-cmd="start recipe">“Start recipe”</button>
               <button class="voice-chip" data-cmd="next">“Next step”</button>
               <button class="voice-chip" data-cmd="repeat">“Repeat”</button>
-              <button class="voice-chip" data-cmd="previous">“Go back”</button>
+              <button class="voice-chip" data-cmd="set timer for 10 minutes">“Set 10m timer”</button>
+              <button class="voice-chip" data-cmd="how much time is left?">“Time left?”</button>
               <button class="voice-chip" data-cmd="how much butter do I need?">“How much butter?”</button>
               <button class="voice-chip voice-chip-stop" data-cmd="stop">“Stop”</button>
             </div>
@@ -388,7 +407,7 @@
         rel="noreferrer">Toa Heftiba</a>.</span>
   </footer>
 
-  <script type="module" src="app.js?v=15"></script>
+  <script type="module" src="app.js?v=16"></script>
 </body>
 
 </html>

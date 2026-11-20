@@ -344,6 +344,61 @@ main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
   letter-spacing: -0.015em;
 }
 
+/* Step Timer Suggestion Chips */
+.step-timer-suggestion {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--forest-pale);
+  border: 1px solid #c2d6c7;
+  border-radius: 0.65rem;
+}
+
+.step-timer-hint {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--forest);
+}
+
+.step-timer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.btn-step-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--forest);
+  border: 1px solid var(--forest);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.btn-step-timer:hover {
+  background: #17382a;
+  transform: translateY(-1px);
+}
+
+.btn-step-timer svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
 .voice-reminder { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1rem; color: var(--ink-soft); font-size: 0.78rem; }
 .voice-reminder svg { flex: 0 0 auto; color: var(--gold); }
 .step-actions { display: grid; grid-template-columns: auto auto auto minmax(150px, 1fr); gap: 0.65rem; padding-top: 1rem; border-top: 1px solid var(--line); }
@@ -574,6 +629,131 @@ main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
 
 .mic-hint { margin-top: 1rem; color: var(--forest); background: transparent; font-size: 0.86rem; font-weight: 700; }
 .speech-live-text { min-height: 44px; margin-top: 0.6rem; color: var(--ink-soft); text-align: center; font-size: 0.82rem; }
+
+/* Active Timers in Assistant Card */
+.active-timers-container {
+  margin: 0.85rem 0;
+  padding: 0.85rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.active-timers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.active-timers-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--forest);
+}
+
+.active-timers-title svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--forest);
+  stroke-width: 2;
+  fill: none;
+}
+
+.active-timers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.timer-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  transition: all 160ms ease;
+}
+
+.timer-card.is-ringing {
+  background: var(--terracotta-pale);
+  border-color: var(--terracotta);
+  animation: timerRingPulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes timerRingPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(231, 111, 81, 0); }
+  100% { transform: scale(1.02); box-shadow: 0 0 12px rgba(231, 111, 81, 0.4); }
+}
+
+.timer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.timer-name {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.timer-time {
+  font-family: "DM Sans", monospace, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--forest);
+  letter-spacing: -0.02em;
+}
+
+.timer-card.is-ringing .timer-time {
+  color: var(--danger);
+}
+
+.timer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-timer-action {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  transition: all 140ms ease;
+}
+
+.btn-timer-action:hover {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+
+.btn-timer-stop {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+  font-weight: 700;
+  animation: pulseButton 0.8s infinite alternate;
+}
+
+@keyframes pulseButton {
+  from { opacity: 0.9; }
+  to { opacity: 1; transform: scale(1.05); }
+}
+
 .command-section { padding-top: 1rem; border-top: 1px solid var(--line); }
 .command-section > span { color: var(--ink-faint); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .voice-command-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.7rem; }

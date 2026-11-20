@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseVoiceCommand } from '../src/voice/command-parser.ts';
+import { parseVoiceCommand, parseDurationSeconds, extractStepTimers } from '../src/voice/command-parser.ts';
 
 test('Voice Command Parser - Intent Classification', async (t) => {
   await t.test('classifies NEXT_STEP intents', () => {
@@ -56,6 +56,45 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(cmd2.payload?.ingredientName, 'eggs');
   });
 
+  await t.test('classifies timer intents (SET_TIMER, CHECK_TIMER, CANCEL_TIMER)', () => {
+    // Set timer
+    const t1 = parseVoiceCommand('set a timer for 10 minutes');
+    assert.equal(t1.action, 'SET_TIMER');
+    assert.equal(t1.payload?.durationSeconds, 600);
+
+    const t2 = parseVoiceCommand('set timer for 5 minutes');
+    assert.equal(t2.action, 'SET_TIMER');
+    assert.equal(t2.payload?.durationSeconds, 300);
+
+    const t3 = parseVoiceCommand('set a 15 minute timer');
+    assert.equal(t3.action, 'SET_TIMER');
+    assert.equal(t3.payload?.durationSeconds, 900);
+
+    const t4 = parseVoiceCommand('set timer for 1 minute 30 seconds');
+    assert.equal(t4.action, 'SET_TIMER');
+    assert.equal(t4.payload?.durationSeconds, 90);
+
+    const t5 = parseVoiceCommand('set a timer for 45 seconds');
+    assert.equal(t5.action, 'SET_TIMER');
+    assert.equal(t5.payload?.durationSeconds, 45);
+
+    const t6 = parseVoiceCommand('set a pasta timer for 8 minutes');
+    assert.equal(t6.action, 'SET_TIMER');
+    assert.equal(t6.payload?.durationSeconds, 480);
+    assert.equal(t6.payload?.timerLabel, 'pasta');
+
+    // Check timer
+    assert.equal(parseVoiceCommand('check timer').action, 'CHECK_TIMER');
+    assert.equal(parseVoiceCommand('how much time is left?').action, 'CHECK_TIMER');
+    assert.equal(parseVoiceCommand('timer status').action, 'CHECK_TIMER');
+    assert.equal(parseVoiceCommand('time left on timer').action, 'CHECK_TIMER');
+
+    // Cancel timer
+    assert.equal(parseVoiceCommand('cancel timer').action, 'CANCEL_TIMER');
+    assert.equal(parseVoiceCommand('stop timer').action, 'CANCEL_TIMER');
+    assert.equal(parseVoiceCommand('clear timer').action, 'CANCEL_TIMER');
+  });
+
   await t.test('classifies STOP and interrupt intents', () => {
     assert.equal(parseVoiceCommand('stop').action, 'STOP');
     assert.equal(parseVoiceCommand('pause').action, 'STOP');
@@ -66,5 +105,42 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(parseVoiceCommand('stop reading').action, 'STOP');
     assert.equal(parseVoiceCommand('please stop').action, 'STOP');
     assert.equal(parseVoiceCommand('preheat oven to 375 degrees stop').action, 'STOP');
+  });
+});
+
+test('Kitchen Timer - Duration Parsing & Step Timer Extraction', async (t) => {
+  await t.test('parseDurationSeconds handles multiple formats', () => {
+    assert.equal(parseDurationSeconds('10 minutes'), 600);
+    assert.equal(parseDurationSeconds('1 minute 30 seconds'), 90);
+    assert.equal(parseDurationSeconds('45 seconds'), 45);
+    assert.equal(parseDurationSeconds('1 hour'), 3600);
+    assert.equal(parseDurationSeconds('1.5 hours'), 5400);
+    assert.equal(parseDurationSeconds('half an hour'), 1800);
+    assert.equal(parseDurationSeconds('quarter of an hour'), 900);
+    assert.equal(parseDurationSeconds('ten minutes'), 600);
+    assert.equal(parseDurationSeconds('five minutes'), 300);
+    assert.equal(parseDurationSeconds('no numbers here'), null);
+  });
+
+  await t.test('extractStepTimers finds durations in cooking instructions', () => {
+    const s1 = 'Bake in preheated oven for 20 to 25 minutes until golden brown.';
+    const timers1 = extractStepTimers(s1);
+    assert.equal(timers1.length, 2);
+    assert.equal(timers1[0].durationSeconds, 1200);
+    assert.equal(timers1[1].durationSeconds, 1500);
+
+    const s2 = 'Simmer the tomato sauce over low heat for 15 minutes, stirring occasionally.';
+    const timers2 = extractStepTimers(s2);
+    assert.equal(timers2.length, 1);
+    assert.equal(timers2[0].durationSeconds, 900);
+
+    const s3 = 'Rest the pizza dough covered for 1 hour at room temperature.';
+    const timers3 = extractStepTimers(s3);
+    assert.equal(timers3.length, 1);
+    assert.equal(timers3[0].durationSeconds, 3600);
+
+    const s4 = 'Chop onions and garlic finely.';
+    const timers4 = extractStepTimers(s4);
+    assert.equal(timers4.length, 0);
   });
 });

@@ -451,10 +451,135 @@ class WebAudioEffects {
   }
 }
 
+// --- Kitchen Timer Parser Helpers ---
+function parseDurationSeconds(text) {
+  const clean = text.toLowerCase().trim();
+  if (!clean) return null;
+
+  if (/\b(?:half\s+(?:an?\s+)?hour)\b/i.test(clean)) return 1800;
+  if (/\b(?:quarter\s+(?:of\s+an?\s+)?hour)\b/i.test(clean)) return 900;
+  if (/\b(?:an?\s+hour\s+and\s+a\s+half)\b/i.test(clean)) return 5400;
+  if (/\b(?:an?\s+hour)\b/i.test(clean) && !/\d+\s*hours?/i.test(clean)) return 3600;
+  if (/\b(?:a\s+minute)\b/i.test(clean) && !/\d+\s*minutes?/i.test(clean)) return 60;
+
+  const wordMap = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fortyfive: 45, fifty: 50
+  };
+
+  let normalized = clean;
+  for (const [w, n] of Object.entries(wordMap)) {
+    const rx = new RegExp(`\\b${w}\\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)\\b`, 'gi');
+    normalized = normalized.replace(rx, `${n} $1`);
+  }
+
+  let totalSeconds = 0;
+  let matchedAny = false;
+
+  const hourMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)\b/i);
+  if (hourMatch) {
+    totalSeconds += Math.round(parseFloat(hourMatch[1]) * 3600);
+    matchedAny = true;
+  }
+
+  const minMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?)\b/i);
+  if (minMatch) {
+    totalSeconds += Math.round(parseFloat(minMatch[1]) * 60);
+    matchedAny = true;
+  }
+
+  const secMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:seconds?|secs?)\b/i);
+  if (secMatch) {
+    totalSeconds += Math.round(parseFloat(secMatch[1]));
+    matchedAny = true;
+  }
+
+  return matchedAny && totalSeconds > 0 ? totalSeconds : null;
+}
+
+function extractStepTimers(instruction) {
+  if (!instruction) return [];
+  const results = [];
+  const seenSeconds = new Set();
+
+  const rangeRegex = /\b(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)\b/gi;
+  let rangeMatch;
+  while ((rangeMatch = rangeRegex.exec(instruction)) !== null) {
+    const val1 = parseFloat(rangeMatch[1]);
+    const val2 = parseFloat(rangeMatch[2]);
+    const unit = rangeMatch[3].toLowerCase();
+    const multiplier = unit.startsWith('h') ? 3600 : unit.startsWith('s') ? 1 : 60;
+    const unitLabel = unit.startsWith('h') ? 'hr' : unit.startsWith('s') ? 'sec' : 'min';
+
+    const s1 = Math.round(val1 * multiplier);
+    if (!seenSeconds.has(s1) && s1 > 0) {
+      seenSeconds.add(s1);
+      results.push({ durationSeconds: s1, label: `${val1} ${unitLabel}`, text: rangeMatch[0] });
+    }
+    const s2 = Math.round(val2 * multiplier);
+    if (!seenSeconds.has(s2) && s2 > 0) {
+      seenSeconds.add(s2);
+      results.push({ durationSeconds: s2, label: `${val2} ${unitLabel}`, text: rangeMatch[0] });
+    }
+  }
+
+  const singleRegex = /\b(?:for|simmer|bake|cook|boil|roast|rest|chill|wait|steep)?\s*(?:about\s+|approximately\s+)?(\d+(?:\.\d+)?)\s*(minutes?|mins?|hours?|hrs?|seconds?|secs?)\b/gi;
+  let singleMatch;
+  while ((singleMatch = singleRegex.exec(instruction)) !== null) {
+    const val = parseFloat(singleMatch[1]);
+    const unit = singleMatch[2].toLowerCase();
+    const multiplier = unit.startsWith('h') ? 3600 : unit.startsWith('s') ? 1 : 60;
+    const unitLabel = unit.startsWith('h') ? 'hr' : unit.startsWith('s') ? 'sec' : 'min';
+    const s = Math.round(val * multiplier);
+    if (!seenSeconds.has(s) && s > 0) {
+      seenSeconds.add(s);
+      results.push({ durationSeconds: s, label: `${val} ${unitLabel}`, text: singleMatch[0].trim() });
+    }
+  }
+
+  return results;
+}
+
 // --- Voice Command Intent Matcher ---
 function parseVoiceCommand(text) {
   const clean = text.trim().toLowerCase();
   if (!clean) return { action: 'UNKNOWN', rawTranscript: text };
+
+  // Cancel / Clear Timer: "cancel timer", "stop timer", "clear timer"
+  if (
+    /\b(?:cancel|clear|delete|remove)\s+(?:the\s+)?timer\b/i.test(clean) ||
+    /^(?:cancel|stop)\s+(?:the\s+)?timer$/i.test(clean)
+  ) {
+    return { action: 'CANCEL_TIMER', rawTranscript: text };
+  }
+
+  // Check Timer: "check timer", "how much time is left", "time left", "timer status"
+  if (
+    /\b(?:check\s+timer|timer\s+status|how\s+much\s+time(?:\s+is)?\s+left|how\s+long\s+left|time\s+left(?:\s+on\s+timer)?|is\s+the\s+timer\s+done)\b/i.test(clean) ||
+    /^(?:timer|check\s+timers?)$/i.test(clean)
+  ) {
+    return { action: 'CHECK_TIMER', rawTranscript: text };
+  }
+
+  // Set Timer: "set a timer for 10 minutes", "set 5 minute timer", "pasta timer 8 minutes"
+  if (/\btimer\b/i.test(clean)) {
+    const durationSeconds = parseDurationSeconds(clean);
+    if (durationSeconds && durationSeconds > 0) {
+      let timerLabel = 'Timer';
+      const labelMatch = clean.match(/(?:set|start|create)\s+(?:a\s+)?([a-z0-9\s]+?)\s+timer/i);
+      const labelAfterMatch = clean.match(/timer\s+for\s+([a-z]+)\s+for/i);
+      if (labelAfterMatch && labelAfterMatch[1]) {
+        timerLabel = labelAfterMatch[1].trim();
+      } else if (labelMatch && !['kitchen', 'cooking', 'new', 'quick', ''].includes(labelMatch[1].trim())) {
+        timerLabel = labelMatch[1].trim();
+      }
+      return {
+        action: 'SET_TIMER',
+        payload: { durationSeconds, timerLabel },
+        rawTranscript: text
+      };
+    }
+  }
 
   // Stop / Pause / Silence (Top priority to interrupt assistant speech)
   // Matches any utterance containing stop, pause, quiet, silence, halt, etc.
@@ -887,6 +1012,249 @@ class VoiceRecognitionManager {
   }
 }
 
+// --- Kitchen Timer Manager ---
+class KitchenTimerManager {
+  constructor(app) {
+    this.app = app;
+    this.timers = [];
+    this.timerInterval = null;
+    this.alarmLoopTimer = null;
+    this.container = document.getElementById('activeTimersContainer');
+    this.listEl = document.getElementById('activeTimersList');
+  }
+
+  createTimer(durationSeconds, label = 'Timer', stepId = null) {
+    if (!durationSeconds || durationSeconds <= 0) return null;
+    const id = 'timer_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const now = Date.now();
+    const timer = {
+      id,
+      label,
+      durationSeconds,
+      remainingSeconds: durationSeconds,
+      endTime: now + durationSeconds * 1000,
+      status: 'running',
+      stepId
+    };
+
+    this.timers.push(timer);
+    this.startTicker();
+    this.render();
+
+    const readable = this.formatDurationReadable(durationSeconds);
+    const spokenLabel = label && label !== 'Timer' ? `${label} timer` : 'timer';
+    this.app.speech.speak(`Starting a ${readable} ${spokenLabel}.`);
+    this.app.recordAudit(`⏱️ Timer started: "${label}" (${readable})`);
+    return timer;
+  }
+
+  startTicker() {
+    if (this.timerInterval) return;
+    this.timerInterval = setInterval(() => {
+      this.tick();
+    }, 1000);
+  }
+
+  stopTickerIfIdle() {
+    if (this.timers.length === 0) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  tick() {
+    const now = Date.now();
+    let hasRinging = false;
+
+    this.timers.forEach(t => {
+      if (t.status === 'running') {
+        t.remainingSeconds = Math.max(0, Math.round((t.endTime - now) / 1000));
+        if (t.remainingSeconds <= 0) {
+          t.status = 'ringing';
+          this.onTimerCompleted(t);
+        }
+      }
+      if (t.status === 'ringing') {
+        hasRinging = true;
+      }
+    });
+
+    if (hasRinging) {
+      this.startAlarmLoop();
+    } else {
+      this.stopAlarmLoop();
+    }
+
+    this.render();
+  }
+
+  onTimerCompleted(timer) {
+    const readable = this.formatDurationReadable(timer.durationSeconds);
+    const name = timer.label && timer.label !== 'Timer' ? timer.label : `${readable}`;
+    this.app.recordAudit(`🔔 Timer finished: "${name}"`);
+    this.app.speech.speak(`Ding! Your ${name} timer is done!`);
+    this.app.soundEffects.playAlarm();
+  }
+
+  startAlarmLoop() {
+    if (this.alarmLoopTimer) return;
+    this.alarmLoopTimer = setInterval(() => {
+      this.app.soundEffects.playAlarm();
+    }, 1800);
+  }
+
+  stopAlarmLoop() {
+    if (this.alarmLoopTimer) {
+      clearInterval(this.alarmLoopTimer);
+      this.alarmLoopTimer = null;
+    }
+  }
+
+  stopRingingTimers() {
+    let stoppedAny = false;
+    this.timers.forEach(t => {
+      if (t.status === 'ringing') {
+        t.status = 'completed';
+        stoppedAny = true;
+      }
+    });
+    this.timers = this.timers.filter(t => t.status !== 'completed');
+    this.stopAlarmLoop();
+    this.stopTickerIfIdle();
+    this.render();
+    return stoppedAny;
+  }
+
+  cancelTimer(timerId = null) {
+    if (!timerId) {
+      if (this.timers.length === 0) {
+        this.app.speech.speak('There are no active timers to cancel.');
+        return;
+      }
+      const removed = this.timers.pop();
+      this.app.speech.speak(`${removed.label} timer cancelled.`);
+      this.app.recordAudit(`⏱️ Timer cancelled: "${removed.label}"`);
+    } else {
+      const idx = this.timers.findIndex(t => t.id === timerId);
+      if (idx !== -1) {
+        const [removed] = this.timers.splice(idx, 1);
+        this.app.speech.speak(`${removed.label} timer cancelled.`);
+        this.app.recordAudit(`⏱️ Timer cancelled: "${removed.label}"`);
+      }
+    }
+    this.stopAlarmLoop();
+    this.stopTickerIfIdle();
+    this.render();
+  }
+
+  checkTimer() {
+    const active = this.timers.filter(t => t.status === 'running' || t.status === 'paused');
+    if (active.length === 0) {
+      this.app.speech.speak('You do not have any active timers running right now.');
+      return;
+    }
+
+    if (active.length === 1) {
+      const t = active[0];
+      const rem = this.formatDurationReadable(t.remainingSeconds);
+      const name = t.label && t.label !== 'Timer' ? `${t.label} timer` : 'timer';
+      this.app.speech.speak(`There is ${rem} remaining on your ${name}.`);
+    } else {
+      const summaries = active.map(t => {
+        const rem = this.formatDurationReadable(t.remainingSeconds);
+        return `${t.label}: ${rem}`;
+      });
+      this.app.speech.speak(`You have ${active.length} active timers: ${summaries.join(', ')}.`);
+    }
+  }
+
+  togglePause(timerId) {
+    const t = this.timers.find(x => x.id === timerId);
+    if (!t) return;
+    if (t.status === 'running') {
+      t.status = 'paused';
+    } else if (t.status === 'paused') {
+      t.status = 'running';
+      t.endTime = Date.now() + t.remainingSeconds * 1000;
+    }
+    this.render();
+  }
+
+  formatTimeDigital(totalSecs) {
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    const h = Math.floor(m / 60);
+    if (h > 0) {
+      const remM = m % 60;
+      return `${h}:${String(remM).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  formatDurationReadable(secs) {
+    if (secs < 60) return `${secs} second${secs === 1 ? '' : 's'}`;
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    const h = Math.floor(m / 60);
+    const remM = m % 60;
+
+    const parts = [];
+    if (h > 0) parts.push(`${h} hour${h === 1 ? '' : 's'}`);
+    if (remM > 0) parts.push(`${remM} minute${remM === 1 ? '' : 's'}`);
+    if (s > 0) parts.push(`${s} second${s === 1 ? '' : 's'}`);
+    return parts.join(' and ') || '0 seconds';
+  }
+
+  render() {
+    if (!this.container || !this.listEl) return;
+    if (this.timers.length === 0) {
+      this.container.hidden = true;
+      this.listEl.innerHTML = '';
+      return;
+    }
+
+    this.container.hidden = false;
+    this.listEl.innerHTML = this.timers.map(t => {
+      const isRinging = t.status === 'ringing';
+      const isPaused = t.status === 'paused';
+      const timeDisplay = isRinging ? 'DONE!' : this.formatTimeDigital(t.remainingSeconds);
+
+      return `
+        <div class="timer-card ${isRinging ? 'is-ringing' : ''}" data-id="${t.id}">
+          <div class="timer-info">
+            <span class="timer-name">${t.label}</span>
+            <span class="timer-time">${timeDisplay}</span>
+          </div>
+          <div class="timer-actions">
+            ${isRinging ? `
+              <button class="btn-timer-action btn-timer-stop" data-action="stop" data-id="${t.id}">Stop</button>
+            ` : `
+              <button class="btn-timer-action" data-action="toggle" data-id="${t.id}">
+                ${isPaused ? 'Resume' : 'Pause'}
+              </button>
+              <button class="btn-timer-action" data-action="cancel" data-id="${t.id}" title="Cancel timer">✕</button>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.listEl.querySelectorAll('.btn-timer-action').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        const action = e.currentTarget.dataset.action;
+        if (action === 'stop') {
+          this.stopRingingTimers();
+        } else if (action === 'toggle') {
+          this.togglePause(id);
+        } else if (action === 'cancel') {
+          this.cancelTimer(id);
+        }
+      });
+    });
+  }
+}
+
 // --- App State & UI Bindings ---
 class RecipeApp {
   constructor() {
@@ -894,6 +1262,7 @@ class RecipeApp {
     this.speech = new SpeechManager();
     this.voiceRecognition = new VoiceRecognitionManager(this.speech, (intent) => this.handleVoiceIntent(intent));
     this.voiceRecognition.app = this;
+    this.timerManager = new KitchenTimerManager(this);
     this.catBubbleTimer = null;
 
     // Core State Machine variables
@@ -1213,12 +1582,30 @@ class RecipeApp {
 
     switch (intent.action) {
       case 'STOP':
+        const stoppedTimer = this.timerManager?.stopRingingTimers();
         this.speech.stop();
         this.status = 'AWAITING_INPUT';
         this.updateStatusBadge();
+        if (stoppedTimer) {
+          this.recordAudit(`🔔 Timer alarm silenced.`);
+        }
         this.recordAudit(`🛑 Stopped speaking (Voice: "${intent.rawTranscript}")`);
         const liveEl = document.getElementById('liveTranscriptDisplay');
         if (liveEl) liveEl.innerText = '🛑 Stopped. Ready for next command.';
+        break;
+      case 'SET_TIMER':
+        if (intent.payload?.durationSeconds) {
+          this.timerManager?.createTimer(
+            intent.payload.durationSeconds,
+            intent.payload.timerLabel || 'Timer'
+          );
+        }
+        break;
+      case 'CHECK_TIMER':
+        this.timerManager?.checkTimer();
+        break;
+      case 'CANCEL_TIMER':
+        this.timerManager?.cancelTimer();
         break;
       case 'NEXT_STEP':
         this.next_step();
@@ -1434,6 +1821,40 @@ class RecipeApp {
       const isFinal = this.currentStepIndex === this.recipe.steps.length - 1;
       if (nextBtn) {
         nextBtn.innerHTML = `<span>${isFinal ? 'Finish recipe' : 'Next step'}</span><svg><use href="#icon-forward"></use></svg>`;
+      }
+    }
+
+    // Render detected step timer suggestions
+    const timerSuggestionContainer = document.getElementById('stepTimerSuggestion');
+    const timerChipsContainer = document.getElementById('stepTimerChips');
+    if (timerSuggestionContainer && timerChipsContainer) {
+      if (this.currentStepIndex >= 0 && this.recipe.steps[this.currentStepIndex]) {
+        const currentStep = this.recipe.steps[this.currentStepIndex];
+        const detected = extractStepTimers(currentStep.instruction);
+        if (detected.length > 0) {
+          timerChipsContainer.innerHTML = detected.map(d => `
+            <button class="btn-step-timer" data-seconds="${d.durationSeconds}" data-label="Step ${currentStep.id} (${d.label})">
+              <svg><use href="#icon-timer"></use></svg>
+              <span>Start ${d.label} timer</span>
+            </button>
+          `).join('');
+          timerChipsContainer.querySelectorAll('.btn-step-timer').forEach(b => {
+            b.addEventListener('click', (e) => {
+              const sec = parseInt(e.currentTarget.dataset.seconds, 10);
+              const lbl = e.currentTarget.dataset.label;
+              if (this.timerManager) {
+                this.timerManager.createTimer(sec, lbl, currentStep.id);
+              }
+            });
+          });
+          timerSuggestionContainer.hidden = false;
+        } else {
+          timerSuggestionContainer.hidden = true;
+          timerChipsContainer.innerHTML = '';
+        }
+      } else {
+        timerSuggestionContainer.hidden = true;
+        timerChipsContainer.innerHTML = '';
       }
     }
   }

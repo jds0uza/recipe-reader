@@ -55,6 +55,16 @@ export interface StateSnapshot {
 export type StateListener = (snapshot: StateSnapshot) => void;
 export type StepChangeListener = (step: RecipeStep, stepIndex: number, totalSteps: number) => void;
 
+export interface KitchenTimer {
+  id: string;
+  label: string;
+  durationSeconds: number;
+  remainingSeconds: number;
+  endTime: number;
+  status: 'running' | 'paused' | 'ringing' | 'completed';
+  stepId?: number;
+}
+
 export interface VoiceCommandIntent {
   action:
     | 'NEXT_STEP'
@@ -63,6 +73,9 @@ export interface VoiceCommandIntent {
     | 'JUMP_TO_STEP'
     | 'QUERY_INGREDIENT'
     | 'LIST_INGREDIENTS'
+    | 'SET_TIMER'
+    | 'CHECK_TIMER'
+    | 'CANCEL_TIMER'
     | 'PAUSE_RECIPE'
     | 'RESUME_RECIPE'
     | 'STOP'
@@ -70,6 +83,8 @@ export interface VoiceCommandIntent {
   payload?: {
     stepIndex?: number;
     ingredientName?: string;
+    durationSeconds?: number;
+    timerLabel?: string;
   };
   rawTranscript: string;
   confidence?: number;
