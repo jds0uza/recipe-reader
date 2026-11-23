@@ -1060,7 +1060,6 @@ class VoiceSettingsModalManager {
     if (this.speech.isElevenLabsActive) {
       const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'ElevenLabs';
       this.app?.recordAudit(`🎙️ Activated ElevenLabs voice: ${voiceName}`);
-      this.speech.speak(`Voice settings updated. Now cooking with ElevenLabs ${voiceName}.`);
     } else {
       this.app?.recordAudit('🎙️ Switched to browser offline voice.');
     }
@@ -1084,7 +1083,8 @@ class VoiceSettingsModalManager {
 
     const key = (this.apiKeyInput?.value || this.speech.elevenKey || '').trim();
     const voiceId = this.voiceSelect?.value || this.speech.elevenVoiceId;
-    const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Rachel';
+    const rawVoiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text || 'Rachel';
+    const voiceName = rawVoiceName.split('(')[0].replace(/[^a-zA-Z0-9\s-]/g, '').trim() || 'Rachel';
 
     if (key) {
       try {
@@ -1095,7 +1095,7 @@ class VoiceSettingsModalManager {
         this.speech.elevenKey = key;
         this.speech.elevenVoiceId = voiceId;
 
-        await this.speech.speakElevenLabs(`Hi there! I am ${voiceName} from ElevenLabs. I am ready to guide your cooking hands-free.`);
+        await this.speech.speakElevenLabs('Ready to cook hands-free.');
 
         if (this.statusTitle) this.statusTitle.textContent = 'ElevenLabs Audio Working!';
         if (this.statusSub) this.statusSub.textContent = `Successfully played audio using ${voiceName}.`;
@@ -1107,10 +1107,10 @@ class VoiceSettingsModalManager {
         if (this.statusSub) this.statusSub.textContent = `${err.message}. Falling back to browser voice.`;
         if (this.modalDot) this.modalDot.className = 'voice-status-dot has-error';
         if (this.statusCard) this.statusCard.classList.add('error');
-        this.speech.speakBrowser(`ElevenLabs failed to connect. Falling back to browser speech.`);
+        this.speech.speakBrowser('ElevenLabs failed to connect. Falling back to browser speech.');
       }
     } else {
-      this.speech.speakBrowser(`Hello! I'm your cooking assistant, running offline with your browser's built-in voice.`);
+      this.speech.speakBrowser('Ready to cook hands-free.');
     }
 
     if (testBtn) {
