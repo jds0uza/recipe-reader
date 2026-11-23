@@ -80,19 +80,6 @@ stateDiagram-v2
 
 ---
 
-## 🛡️ Edge-Case Voice Engineering
-
-Kitchen environments present unique full-duplex audio challenges. SousChef solves four core edge cases:
-
-| Challenge | Real-World Failure | SousChef Solution |
-| :--- | :--- | :--- |
-| **Acoustic Self-Feedback** | Assistant's voice bleeds into mic, re-triggering recursive timer/step loops | **Imperative Grammar:** Strictly requires leading command verbs (`^set a timer`) and rejects descriptive confirmations (`"timer started"`), backed by a 3s deduplication guard. |
-| **Chromium Memory Leaks** | Continuous Web Speech leaks C++ buffers over multi-hour sessions | **Instance Recycling:** Explicitly detaches handlers, aborts, and instantiates a clean `SpeechRecognition` object on restart. |
-| **Barge-In Interrupts** | User saying "Stop" blends with speaker audio into a single transcript | **Boundary & Alt-Scanning:** Priority #1 `\bstop\b` matching across interim recognition alternatives with instant buffer flush. |
-| **Countertop Idle Drain** | Open kitchen tabs drain battery and leave mic active unattended | **Auto-Sleep Watchdog:** 5-minute inactivity timer and `visibilitychange` background throttling. |
-
----
-
 ## 🚀 Getting Started
 
 Run tests:
@@ -110,7 +97,7 @@ Open your browser at:
 http://localhost:3000
 ```
 
-*(Alternatively, open [public/index.html](file:///Users/jdsouza/aifun/recipe%20reader/public/index.html) directly in any modern browser—offline sample recipes work with zero server required!)*
+*(Alternatively, open `public/index.html` directly in any modern browser—offline sample recipes work with zero server required!)*
 
 ### Voice Commands Supported
 
@@ -118,6 +105,7 @@ http://localhost:3000
 - **Repetition:** `"Repeat"`, `"Say that again"`, `"What was that"`
 - **Backtracking:** `"Back"`, `"Previous step"`, `"Go back"`
 - **Navigation:** `"Jump to step 4"`, `"Go to step 2"`
+- **Cooking Timers:** `"Set a 10 minute timer"`, `"Set pasta timer for 8 minutes"`, `"Start timer"`, `"Check timer"`, `"Cancel timer"`
 - **Interruption / Stop:** `"Stop"`, `"Pause"`, `"Quiet"`, `"Be quiet"`, `"Silence"`
 - **Ingredient Queries:** `"How much butter do I need?"`, `"How many eggs?"`, `"List ingredients"`
 
@@ -127,7 +115,7 @@ http://localhost:3000
 
 When you are ready to plug in ElevenLabs studio voices:
 
-1. Look at [src/voice/tts-provider.ts](file:///Users/jdsouza/aifun/recipe%20reader/src/voice/tts-provider.ts). The `ElevenLabsTTSAdapter` implements the identical `TTSProvider` contract:
+1. Look at [src/voice/tts-provider.ts](src/voice/tts-provider.ts). The `ElevenLabsTTSAdapter` implements the identical `TTSProvider` contract:
 ```typescript
 import { ElevenLabsTTSAdapter } from './src/voice/tts-provider.ts';
 
