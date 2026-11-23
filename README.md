@@ -1,13 +1,10 @@
-# 👩‍🍳 SousChef: Recipe Reader
+# 👩‍🍳 SousChef: A Hands-Free Voice Interface for Kitchen Recipe Navigation
 
-> **A hands-free voice interface for kitchen recipe navigation.**  
-> Built as an audio-first engineering showcase with swappable TTS/STT providers—running with native browser speech synthesis today, architected for ElevenLabs streaming voice integration.
+Kitchen environments present unique challenges for conversational voice assistants and 
+When cooking, it's difficult to be constantly checking your screen for the next step or to be reminded of how much of an ingredient is required. SousChef solves this problem by providing a hands-free voice interface for recipe navigation.
 
----
+Works offline out of the box using your browser's built-in voice, with a plug-and-play architecture ready for ElevenLabs AI voices to bring warmth and natural, human narration to the kitchen.
 
-## 🎯 Motivation & Design Philosophy
-
-Kitchen environments present unique challenges for conversational voice assistants:
 1. **Messy hands & distance:** Users stand several feet away from the screen; navigation is 100% hands-free and operates using clear voice commands.
 2. **Deterministic step progression:** Cooking is a step-by-step workflow. The state machine guarantees steps are read in order without hallucinating, skipping ahead, or losing state.
 3. **Echo suppression & feedback prevention:** When the assistant speaks, mic input is automatically suppressed with a cooldown period so the device doesn't hear and re-execute its own voice.
