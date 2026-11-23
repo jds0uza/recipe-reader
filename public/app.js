@@ -1779,7 +1779,7 @@ class RecipeApp {
 
         let notesStr = '';
         if (cleanNotes) {
-          notesStr = `: <em class="ingredient-notes">${cleanNotes}</em>`;
+          notesStr = ` <em class="ingredient-notes">${cleanNotes}</em>`;
         }
 
         const space = (qtyStr || unitStr) ? ' ' : '';
