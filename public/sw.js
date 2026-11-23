@@ -3,7 +3,7 @@
  * Provides offline caching, background resilience, and instantaneous loading.
  */
 
-const CACHE_NAME = 'souschef-cache-v24';
+const CACHE_NAME = 'souschef-cache-v25';
 
 const STATIC_ASSETS = [
   './',

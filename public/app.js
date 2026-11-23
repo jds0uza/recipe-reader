@@ -905,6 +905,22 @@ class VoiceSettingsModalManager {
     if (clearBtn) clearBtn.addEventListener('click', () => this.clear());
     if (testBtn) testBtn.addEventListener('click', () => this.testVoice());
 
+    if (this.voiceSelect) {
+      this.voiceSelect.addEventListener('change', () => {
+        const opt = this.voiceSelect.options[this.voiceSelect.selectedIndex];
+        const category = opt?.dataset?.category;
+        if (category && category !== 'premade') {
+          if (this.statusTitle) this.statusTitle.textContent = 'Paid API Voice Selected';
+          if (this.statusSub) this.statusSub.textContent = '⚠️ Community/library voices require a paid ElevenLabs tier. On the Free Tier, select a "Free Tier ✓" voice like Rachel or Adam.';
+        } else {
+          const voiceName = opt?.text?.split('(')[0]?.trim() || 'Rachel';
+          if (this.statusTitle) this.statusTitle.textContent = 'Voice Selected';
+          if (this.statusSub) this.statusSub.textContent = `Ready to use ${voiceName} (Free Tier compatible).`;
+          if (this.statusCard) this.statusCard.classList.remove('error');
+        }
+      });
+    }
+
     this.updateUi();
 
     // Auto-load account voices on startup if key is already saved in localStorage
@@ -943,13 +959,37 @@ class VoiceSettingsModalManager {
 
       if (voices.length > 0 && this.voiceSelect) {
         const currentSelected = this.voiceSelect.value || this.speech.elevenVoiceId;
-        this.voiceSelect.innerHTML = voices.map(v => {
-          const cat = v.category ? ` (${v.category})` : '';
-          return `<option value="${v.voice_id}">${v.name}${cat}</option>`;
-        }).join('');
 
-        if (voices.some(v => v.voice_id === currentSelected)) {
+        // Separate into Free-Tier Compatible (Premade) and Library/Community voices
+        const premade = voices.filter(v => v.category === 'premade' || !v.category);
+        const others = voices.filter(v => v.category && v.category !== 'premade');
+
+        let html = '';
+        if (premade.length > 0) {
+          html += `<optgroup label="✨ Free Tier Compatible (Premade Voices)">`;
+          html += premade.map(v => `<option value="${v.voice_id}" data-category="premade">${v.name} (Free Tier ✓)</option>`).join('');
+          html += `</optgroup>`;
+        }
+
+        if (others.length > 0) {
+          html += `<optgroup label="🔒 Requires Paid Subscription (Library / Community Voices)">`;
+          html += others.map(v => `<option value="${v.voice_id}" data-category="${v.category}">${v.name} (${v.category} - Paid API)</option>`).join('');
+          html += `</optgroup>`;
+        }
+
+        this.voiceSelect.innerHTML = html;
+
+        // Default to Rachel or first premade voice to guarantee Free Tier compatibility
+        const rachel = voices.find(v => v.voice_id === '21m00Tcm4TlvDq8ikWAM');
+        const firstPremade = premade[0];
+        const isSelectedStillValid = voices.some(v => v.voice_id === currentSelected);
+
+        if (isSelectedStillValid && premade.some(v => v.voice_id === currentSelected)) {
           this.voiceSelect.value = currentSelected;
+        } else if (rachel) {
+          this.voiceSelect.value = rachel.voice_id;
+        } else if (firstPremade) {
+          this.voiceSelect.value = firstPremade.voice_id;
         } else {
           this.voiceSelect.value = voices[0].voice_id;
         }
