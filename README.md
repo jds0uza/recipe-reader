@@ -1,24 +1,19 @@
 # 👩‍🍳 SousChef: Recipe Reader
 
-> **An hands-free voice interface for kitchen recipe navigation.**  
+> **A hands-free voice interface for kitchen recipe navigation.**  
 > Built as an audio-first engineering showcase with swappable TTS/STT providers—running with native browser speech synthesis today, architected for ElevenLabs streaming voice integration.
-
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](file:///Users/jdsouza/aifun/recipe%20reader/test)
-[![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20external-blue.svg)](file:///Users/jdsouza/aifun/recipe%20reader/package.json)
-[![Offline First](https://img.shields.io/badge/offline-100%25-success.svg)](file:///Users/jdsouza/aifun/recipe%20reader)
-[![Audio Architecture](https://img.shields.io/badge/voice-ElevenLabs--Ready-orange.svg)](file:///Users/jdsouza/aifun/recipe%20reader/src/voice/tts-provider.ts)
 
 ---
 
 ## 🎯 Motivation & Design Philosophy
 
 Kitchen environments present unique challenges for conversational voice assistants:
-1. **Messy hands & distance:** Users stand 3–6 feet away from the screen; navigation must be 100% hands-free and resilient to ambient kitchen noise.
-2. **Deterministic state guarantees:** Cooking recipes are sequential workflows. The assistant must never hallucinate steps, lose track of current instructions, or skip prerequisites.
-3. **Echo cancellation & feedback immunity:** Speech synthesizers can trigger microphone feedback loops if the assistant hears its own voice. SousChef implements active speech suppression with post-utterance decay, multi-alternative interim matching, and instant barge-in voice interrupts.
-4. **Memory stability for long-running kitchen sessions:** Voice assistants left open on countertops must never leak memory. SousChef implements active recognizer recycling, background tab visibility throttling, and a 5-minute inactivity watchdog.
-5. **Lightweight, offline-first reliability:** Zero external npm dependencies. Everything runs natively using modern Web APIs and Node 24 native TypeScript execution.
-6. **Thoughtful kitchen UI:** Designed and prototyped in **Figma** with a high-contrast terracotta and warm-cream palette tailored for countertop visibility, then built in pure semantic HTML/CSS with zero UI frameworks.
+1. **Messy hands & distance:** Users stand several feet away from the screen; navigation is 100% hands-free and operates using clear voice commands.
+2. **Deterministic step progression:** Cooking is a step-by-step workflow. The state machine guarantees steps are read in order without hallucinating, skipping ahead, or losing state.
+3. **Echo suppression & feedback prevention:** When the assistant speaks, mic input is automatically suppressed with a cooldown period so the device doesn't hear and re-execute its own voice.
+4. **Countertop stability:** The app stays reliable during long sessions by pausing listening when the browser tab is minimized, recycling speech listeners, and sleeping after 5 minutes of inactivity.
+5. **Zero external dependencies:** Runs entirely on native Web Speech, Web Audio, and Node 24 native TypeScript execution—no npm packages to install.
+6. **Kitchen-first UI:** Designed and prototyped in **Figma** with large typography and high-contrast buttons readable from across the counter, built with clean semantic HTML and CSS.
 
 ---
 
@@ -108,30 +103,14 @@ Kitchen environments present unique full-duplex audio challenges. SousChef solve
 
 ---
 
-## 🧪 Comprehensive Offline Test Suite
+## 🚀 Getting Started
 
-SousChef includes a comprehensive unit and integration test suite executing natively in Node 24 with **zero external dependencies**:
-
+Run tests:
 ```bash
 npm test
 ```
 
-### Test Coverage Highlights
-
-| Test Suite | Focus Areas | Status |
-| :--- | :--- | :---: |
-| [state-machine.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/state-machine.test.ts) | State transitions, sequential traversal, bounds, observers, state snapshots | ✅ Passing |
-| [recipe-scaler.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-scaler.test.ts) | Fraction parsing, unicode normalization, phonetic voice text formatting | ✅ Passing |
-| [command-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/command-parser.test.ts) | Voice intent classification, step timers, feedback exclusions & interrupts | ✅ Passing |
-| [recipe-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-parser.test.ts) | Schema.org JSON-LD extraction, ISO durations, yield parsing | ✅ Passing |
-| [integration.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/integration.test.ts) | Full cooking lifecycle: load $\rightarrow$ query $\rightarrow$ traverse $\rightarrow$ interrupt $\rightarrow$ complete | ✅ Passing |
-
----
-
-## 🚀 Running the Browser Kitchen UI
-
 Start the local server:
-
 ```bash
 npm start
 ```
