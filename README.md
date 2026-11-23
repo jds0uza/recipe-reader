@@ -85,8 +85,9 @@ stateDiagram-v2
 - **Zero-Dependency Schema.org Recipe Extractor:** Ingest any recipe URL supporting Schema.org/Recipe JSON-LD, or load pre-bundled offline recipes.
 - **Swappable Audio Architecture:**
   - `TTSProvider` and `STTProvider` interfaces.
-  - Active offline implementation: `window.speechSynthesis` and `window.SpeechRecognition`.
-  - Ready-to-use adapter: `ElevenLabsTTSAdapter` conforming to ElevenLabs streaming REST and WebSocket contracts.
+  - Active offline implementation: Native `window.speechSynthesis` and `window.SpeechRecognition`.
+  - Ready-to-use adapter: `ElevenLabsTTSAdapter` for ultra-realistic studio voices.
+  - **Zero-cost offline fallback:** When ElevenLabs is unconfigured, rate-limited, or offline, the app automatically falls back to browser speech synthesis.
 
 ---
 
@@ -150,3 +151,4 @@ const tts = new ElevenLabsTTSAdapter({
 await tts.speak("Step 1. Preheat your oven to 375 degrees.");
 ```
 2. The state machine and command parser require zero modifications—audio delivery is completely decoupled from recipe logic!
+3. **Automatic Offline Fallback:** If no API key is set, or if you're cooking offline without internet, SousChef seamlessly falls back to the browser's built-in `window.speechSynthesis` with zero configuration or cost.
