@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f5f1e8" />
   <title>SousChef — Hands-free recipe guidance</title>
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="stylesheet" href="style.css?v=21" />
+  <link rel="stylesheet" href="style.css?v=22" />
   <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
 </head>
 
@@ -74,6 +74,13 @@
         <small>Your hands-free cooking companion</small>
       </span>
     </a>
+    <div class="header-actions">
+      <button id="btnVoiceSettings" class="btn-voice-settings" title="Voice Provider Settings (ElevenLabs / Browser)">
+        <span class="voice-badge-dot" id="headerVoiceDot"></span>
+        <span id="voiceProviderLabel">Browser Voice</span>
+        <svg class="gear-icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      </button>
+    </div>
   </header>
 
   <main>
@@ -406,7 +413,58 @@
         rel="noreferrer">Toa Heftiba</a>.</span>
   </footer>
 
-  <script type="module" src="app.js?v=21"></script>
+  <!-- ELEVENLABS / VOICE SETTINGS MODAL -->
+  <div id="voiceSettingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-cluster">
+          <svg class="modal-title-icon"><use href="#icon-spark"></use></svg>
+          <h3 id="modalTitle">Voice Synthesis Settings</h3>
+        </div>
+        <button id="btnCloseVoiceModal" class="btn-close-modal" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-description">
+          SousChef runs 100% offline using your browser's built-in voice. To test with realistic <strong>ElevenLabs AI studio voices</strong>, enter your personal API key below.
+        </p>
+
+        <div class="form-group">
+          <label for="inputElevenApiKey">ElevenLabs API Key</label>
+          <div class="input-password-row">
+            <input type="password" id="inputElevenApiKey" placeholder="sk_..." autocomplete="off" spellcheck="false" />
+            <button type="button" id="btnToggleApiKeyVis" class="btn-input-addon" title="Show / Hide Key">👁️</button>
+          </div>
+          <span class="field-hint">🔒 Stored exclusively in your browser's local storage. Never logged or sent to any third party.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="selectElevenVoice">Voice Personality</label>
+          <select id="selectElevenVoice">
+            <option value="21m00Tcm4TlvDq8ikWAM">Rachel (Calm, Warm, Friendly) - Recommended</option>
+            <option value="AZnzlk1XvdvUeBnXmlld">Domi (Clear, Energetic)</option>
+            <option value="EXAVITQu4vr4xnSDxMaL">Bella (Expressive, Warm)</option>
+            <option value="ErXwobaYiN019PkySvjV">Antoni (Crisp, Engaging Male)</option>
+            <option value="pNInz6obpgDQGcFmaJgB">Adam (Deep, Natural Male)</option>
+          </select>
+        </div>
+
+        <div class="voice-status-card" id="voiceStatusCard">
+          <span class="voice-status-dot" id="modalVoiceDot"></span>
+          <div class="voice-status-info">
+            <strong id="modalVoiceStatusTitle">Browser Voice Active</strong>
+            <span id="modalVoiceStatusSub">Zero setup offline synthesis</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnClearElevenKey" class="btn-modal btn-ghost">Remove Key</button>
+        <button id="btnTestVoice" class="btn-modal btn-outline">🔊 Test Voice</button>
+        <button id="btnSaveVoiceSettings" class="btn-modal btn-primary">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js?v=22"></script>
 </body>
 
 </html>

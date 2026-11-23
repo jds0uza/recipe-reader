@@ -646,22 +646,125 @@ function parseVoiceCommand(text) {
   return { action: 'UNKNOWN', rawTranscript: text };
 }
 
-// --- Browser SpeechSynthesis Voice Engine ---
+// --- Speech Synthesis Manager (Hybrid: ElevenLabs Streaming + Browser Speech Fallback) ---
 class SpeechManager {
   constructor() {
     this.synth = window.speechSynthesis;
     this.isSpeaking = false;
     this.echoDecayUntil = 0;
     this.currentSpokenText = '';
+    this.audioContext = null;
+    this.currentElevenSource = null;
+    this.loadSettings();
   }
 
-  speak(text, onEnd) {
+  loadSettings() {
+    this.elevenKey = localStorage.getItem('souschef_eleven_key') || '';
+    this.elevenVoiceId = localStorage.getItem('souschef_eleven_voice') || '21m00Tcm4TlvDq8ikWAM';
+    this.elevenModelId = 'eleven_turbo_v2_5';
+  }
+
+  get isElevenLabsActive() {
+    return Boolean(this.elevenKey && this.elevenKey.trim().length > 10);
+  }
+
+  async speak(text, onEnd) {
+    if (!text || !text.trim()) {
+      if (onEnd) onEnd();
+      return;
+    }
+
+    this.stop();
+    this.currentSpokenText = text.toLowerCase();
+
+    // 1. Try ElevenLabs streaming if API key is configured
+    if (this.isElevenLabsActive) {
+      try {
+        await this.speakElevenLabs(text, onEnd);
+        return;
+      } catch (err) {
+        console.warn('ElevenLabs speech failed, falling back to browser voice:', err);
+        if (window.app?.recordAudit) {
+          window.app.recordAudit(`⚠️ ElevenLabs failed (${err.message}). Using browser speech fallback.`);
+        }
+        // Fall through to browser speech fallback
+      }
+    }
+
+    // 2. Default / Fallback: Browser built-in SpeechSynthesis
+    this.speakBrowser(text, onEnd);
+  }
+
+  async speakElevenLabs(text, onEnd) {
+    this.isSpeaking = true;
+    const indicator = document.getElementById('speechStatusIndicator');
+    if (indicator) indicator.style.display = 'inline-flex';
+
+    if (!this.audioContext) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.audioContext = new AudioCtx();
+    }
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.elevenVoiceId}/stream`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': this.elevenKey.trim(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        text,
+        model_id: this.elevenModelId,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75
+        }
+      })
+    });
+
+    if (!response.ok) {
+      let errMsg = `HTTP ${response.status}`;
+      try {
+        const errJson = await response.json();
+        if (errJson.detail?.message) errMsg = errJson.detail.message;
+      } catch {}
+      throw new Error(`ElevenLabs API: ${errMsg}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+    return new Promise((resolve) => {
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.audioContext.destination);
+      this.currentElevenSource = source;
+
+      source.onended = () => {
+        this.isSpeaking = false;
+        this.currentElevenSource = null;
+        this.echoDecayUntil = Date.now() + 850;
+        if (indicator) indicator.style.display = 'none';
+        setTimeout(() => {
+          if (!this.isSpeaking) {
+            this.currentSpokenText = '';
+          }
+        }, 900);
+        if (onEnd) onEnd();
+        resolve();
+      };
+
+      source.start(0);
+    });
+  }
+
+  speakBrowser(text, onEnd) {
     if (!this.synth) {
       if (onEnd) onEnd();
       return;
     }
-    this.stop();
-    this.currentSpokenText = text.toLowerCase();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.0;
@@ -674,13 +777,15 @@ class SpeechManager {
 
     utterance.onstart = () => {
       this.isSpeaking = true;
-      document.getElementById('speechStatusIndicator').style.display = 'inline-flex';
+      const indicator = document.getElementById('speechStatusIndicator');
+      if (indicator) indicator.style.display = 'inline-flex';
     };
 
     utterance.onend = () => {
       this.isSpeaking = false;
-      this.echoDecayUntil = Date.now() + 850; // 850ms speaker echo cancellation cooldown
-      document.getElementById('speechStatusIndicator').style.display = 'none';
+      this.echoDecayUntil = Date.now() + 850;
+      const indicator = document.getElementById('speechStatusIndicator');
+      if (indicator) indicator.style.display = 'none';
       setTimeout(() => {
         if (!this.isSpeaking) {
           this.currentSpokenText = '';
@@ -692,7 +797,8 @@ class SpeechManager {
     utterance.onerror = (e) => {
       this.isSpeaking = false;
       this.echoDecayUntil = Date.now() + 1000;
-      document.getElementById('speechStatusIndicator').style.display = 'none';
+      const indicator = document.getElementById('speechStatusIndicator');
+      if (indicator) indicator.style.display = 'none';
       if (e.error !== 'interrupted' && e.error !== 'canceled') {
         console.error('TTS error:', e);
       }
@@ -705,16 +811,159 @@ class SpeechManager {
   }
 
   stop() {
-    if (this.synth) {
-      this.isSpeaking = false;
-      this.echoDecayUntil = Date.now() + 1200; // 1.2s acoustic echo flush
-      this.currentSpokenText = '';
-      const indicator = document.getElementById('speechStatusIndicator');
-      if (indicator) indicator.style.display = 'none';
+    this.isSpeaking = false;
+    this.echoDecayUntil = Date.now() + 1200;
+    this.currentSpokenText = '';
+    const indicator = document.getElementById('speechStatusIndicator');
+    if (indicator) indicator.style.display = 'none';
+
+    // Stop active ElevenLabs Web Audio playback
+    if (this.currentElevenSource) {
       try {
-        this.synth.pause(); // Flushes Chromium audio buffer queue immediately
-      } catch { }
+        this.currentElevenSource.stop();
+      } catch {}
+      this.currentElevenSource = null;
+    }
+
+    // Stop active browser SpeechSynthesis
+    if (this.synth) {
+      try {
+        this.synth.pause();
+      } catch {}
       this.synth.cancel();
+    }
+  }
+}
+
+// --- Voice Settings Modal Controller (BYOK ElevenLabs) ---
+class VoiceSettingsModalManager {
+  constructor(speechManager, app) {
+    this.speech = speechManager;
+    this.app = app;
+    this.modal = document.getElementById('voiceSettingsModal');
+    this.apiKeyInput = document.getElementById('inputElevenApiKey');
+    this.voiceSelect = document.getElementById('selectElevenVoice');
+    this.toggleVisBtn = document.getElementById('btnToggleApiKeyVis');
+    this.statusTitle = document.getElementById('modalVoiceStatusTitle');
+    this.statusSub = document.getElementById('modalVoiceStatusSub');
+    this.modalDot = document.getElementById('modalVoiceDot');
+    this.headerDot = document.getElementById('headerVoiceDot');
+    this.headerLabel = document.getElementById('voiceProviderLabel');
+
+    this.init();
+  }
+
+  init() {
+    const openBtn = document.getElementById('btnVoiceSettings');
+    const closeBtn = document.getElementById('btnCloseVoiceModal');
+    const saveBtn = document.getElementById('btnSaveVoiceSettings');
+    const clearBtn = document.getElementById('btnClearElevenKey');
+    const testBtn = document.getElementById('btnTestVoice');
+
+    if (openBtn) openBtn.addEventListener('click', () => this.open());
+    if (closeBtn) closeBtn.addEventListener('click', () => this.close());
+    if (this.modal) {
+      this.modal.addEventListener('click', (e) => {
+        if (e.target === this.modal) this.close();
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.modal && !this.modal.classList.contains('hidden')) {
+        this.close();
+      }
+    });
+
+    if (this.toggleVisBtn && this.apiKeyInput) {
+      this.toggleVisBtn.addEventListener('click', () => {
+        const isPass = this.apiKeyInput.type === 'password';
+        this.apiKeyInput.type = isPass ? 'text' : 'password';
+        this.toggleVisBtn.textContent = isPass ? '🙈' : '👁️';
+      });
+    }
+
+    if (saveBtn) saveBtn.addEventListener('click', () => this.save());
+    if (clearBtn) clearBtn.addEventListener('click', () => this.clear());
+    if (testBtn) testBtn.addEventListener('click', () => this.testVoice());
+
+    this.updateUi();
+  }
+
+  open() {
+    if (!this.modal) return;
+    this.speech.loadSettings();
+    if (this.apiKeyInput) this.apiKeyInput.value = this.speech.elevenKey;
+    if (this.voiceSelect) this.voiceSelect.value = this.speech.elevenVoiceId;
+    this.updateUi();
+    this.modal.classList.remove('hidden');
+    if (this.apiKeyInput) this.apiKeyInput.focus();
+  }
+
+  close() {
+    if (!this.modal) return;
+    this.modal.classList.add('hidden');
+  }
+
+  save() {
+    const key = (this.apiKeyInput?.value || '').trim();
+    const voiceId = this.voiceSelect?.value || '21m00Tcm4TlvDq8ikWAM';
+
+    if (key) {
+      localStorage.setItem('souschef_eleven_key', key);
+      localStorage.setItem('souschef_eleven_voice', voiceId);
+    } else {
+      localStorage.removeItem('souschef_eleven_key');
+      localStorage.removeItem('souschef_eleven_voice');
+    }
+
+    this.speech.loadSettings();
+    this.updateUi();
+    this.close();
+
+    if (this.speech.isElevenLabsActive) {
+      const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Rachel';
+      this.app?.recordAudit(`🎙️ Activated ElevenLabs voice: ${voiceName}`);
+      this.speech.speak(`Voice settings updated. Now cooking with ElevenLabs ${voiceName}.`);
+    } else {
+      this.app?.recordAudit('🎙️ Switched to browser offline voice.');
+    }
+  }
+
+  clear() {
+    localStorage.removeItem('souschef_eleven_key');
+    if (this.apiKeyInput) this.apiKeyInput.value = '';
+    this.speech.loadSettings();
+    this.updateUi();
+    this.app?.recordAudit('🗑️ ElevenLabs API key removed. Using browser offline voice.');
+  }
+
+  testVoice() {
+    const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Rachel';
+    const sampleText = this.speech.isElevenLabsActive
+      ? `Hi there! I'm ${voiceName} from ElevenLabs. I'm ready to guide your cooking hands-free.`
+      : `Hello! I'm your cooking assistant, running offline with your browser's built-in voice.`;
+    this.speech.speak(sampleText);
+  }
+
+  updateUi() {
+    const isEleven = this.speech.isElevenLabsActive;
+    const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Rachel';
+
+    if (this.headerDot) {
+      this.headerDot.classList.toggle('active-eleven', isEleven);
+    }
+    if (this.headerLabel) {
+      this.headerLabel.textContent = isEleven ? `ElevenLabs (${voiceName})` : 'Browser Voice';
+    }
+
+    if (this.modalDot) {
+      this.modalDot.classList.toggle('active-eleven', isEleven);
+    }
+    if (this.statusTitle) {
+      this.statusTitle.textContent = isEleven ? `ElevenLabs Active (${voiceName})` : 'Browser Voice Active';
+    }
+    if (this.statusSub) {
+      this.statusSub.textContent = isEleven ? 'Ultra-realistic streaming voice enabled' : 'Zero-setup offline speech synthesis';
     }
   }
 }
@@ -1300,6 +1549,7 @@ class RecipeApp {
     this.voiceRecognition = new VoiceRecognitionManager(this.speech, (intent) => this.handleVoiceIntent(intent));
     this.voiceRecognition.app = this;
     this.timerManager = new KitchenTimerManager(this);
+    this.voiceSettings = new VoiceSettingsModalManager(this.speech, this);
     this.catBubbleTimer = null;
 
     // Core State Machine variables
