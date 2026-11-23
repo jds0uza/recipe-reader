@@ -1,15 +1,14 @@
 # 👩‍🍳 SousChef: A Hands-Free Voice Interface for Kitchen Recipe Navigation
 
-Kitchen environments present unique challenges for conversational voice assistants and 
-When cooking, it's difficult to be constantly checking your screen for the next step or to be reminded of how much of an ingredient is required. SousChef solves this problem by providing a hands-free voice interface for recipe navigation.
+When cooking, it's difficult to constantly tap a screen with messy hands or remember exact ingredient measurements. SousChef solves this with a voice interface for recipe navigation.
 
 Works offline out of the box using your browser's built-in voice, with a plug-and-play architecture ready for ElevenLabs AI voices to bring warmth and natural, human narration to the kitchen.
 
-1. **Messy hands & distance:** Users stand several feet away from the screen; navigation is 100% hands-free and operates using clear voice commands.
-2. **Deterministic step progression:** Cooking is a step-by-step workflow. The state machine guarantees steps are read in order without hallucinating, skipping ahead, or losing state.
+1. **Messy hands & distance:** Users stand several feet away from the screen; once the mic is active, navigation operates via voice commands so you don't have to touch greasy screens.
+2. **Deterministic step progression:** The state machine guarantees steps are read in order without skipping ahead or losing state.
 3. **Echo suppression & feedback prevention:** When the assistant speaks, mic input is automatically suppressed with a cooldown period so the device doesn't hear and re-execute its own voice.
-4. **Countertop stability:** The app stays reliable during long sessions by pausing listening when the browser tab is minimized, recycling speech listeners, and sleeping after 5 minutes of inactivity.
-5. **Zero external dependencies:** Runs entirely on native Web Speech, Web Audio, and Node 24 native TypeScript execution—no npm packages to install.
+4. **Inactivity:** The app stays reliable during long sessions by pausing listening when the browser tab is minimized, recycling speech listeners, and sleeping after 5 minutes of inactivity.
+5. **Zero external dependencies:** Runs entirely on native browser Web APIs and modern Node.js with built-in TypeScript support—no npm packages or build step to install.
 6. **Kitchen-first UI:** Designed and prototyped in **Figma** with large typography and high-contrast buttons readable from across the counter, built with clean semantic HTML and CSS.
 
 ---
@@ -50,11 +49,6 @@ flowchart TD
     TimerManager -->|Voice Alerts| TTS
 ```
 
-### Data Flow
-1. **Audio & Interaction Layer:** Captures audio through the browser's microphone and plays back spoken instructions and Web Audio harmonic chimes without external audio assets.
-2. **Intent & Ingestion Layer:** Ingests recipes from any website supporting Schema.org/Recipe structured data, and classifies spoken user commands using deterministic, noise-resilient natural language matching.
-3. **Deterministic State Engine:** Manages recipe step progression, concurrent cooking timers, and ingredient scaling with strict transition bounds so the assistant never skips steps or hallucinates.
-
 ### State Machine Lifecycle
 
 ```mermaid
@@ -63,9 +57,7 @@ stateDiagram-v2
     IDLE --> READY: loadRecipe(recipe)
     READY --> READING_STEP: start() / next_step()
     READING_STEP --> AWAITING_INPUT: finish_reading_step() / TTS onEnd
-    AWAITING_INPUT --> READING_STEP: next_step() / previous_step() / repeat_step()
-    AWAITING_INPUT --> READING_STEP: jump_to_step(n)
-    AWAITING_INPUT --> AWAITING_INPUT: query_ingredient()
+    AWAITING_INPUT --> READING_STEP: next / previous / repeat / jump_to_step
     AWAITING_INPUT --> COMPLETED: next_step() [at final step]
     COMPLETED --> READY: loadRecipe()
 ```
