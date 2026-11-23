@@ -336,117 +336,214 @@ class WebAudioEffects {
       if (!ctx) return;
       const now = ctx.currentTime;
 
-      const osc = ctx.createOscillator();
-      const oscHarmonic = ctx.createOscillator();
+      // 1. Dual Vocal Harmonic Oscillators (feline vocal cords)
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
       const vibrato = ctx.createOscillator();
       const vibratoGain = ctx.createGain();
+
+      // Pitch vibrato: natural feline vocal inflection
+      vibrato.frequency.setValueAtTime(6.2, now);
+      vibratoGain.gain.setValueAtTime(0, now);
+      vibratoGain.gain.linearRampToValueAtTime(10, now + 0.12);
+      vibratoGain.gain.linearRampToValueAtTime(0, now + 0.38);
+      vibrato.connect(vibratoGain);
+      vibratoGain.connect(osc1.frequency);
+      vibratoGain.connect(osc2.frequency);
+
+      // Fundamental pitch trajectory ("m -> ee -> oww"):
+      // Gentle rise from 440Hz to 680Hz, sweet sustain, then natural curve down to 420Hz
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(440, now);
+      osc1.frequency.exponentialRampToValueAtTime(680, now + 0.12);
+      osc1.frequency.exponentialRampToValueAtTime(650, now + 0.22);
+      osc1.frequency.exponentialRampToValueAtTime(420, now + 0.42);
+
+      // Warm 2nd harmonic
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, now);
+      osc2.frequency.exponentialRampToValueAtTime(1360, now + 0.12);
+      osc2.frequency.exponentialRampToValueAtTime(1300, now + 0.22);
+      osc2.frequency.exponentialRampToValueAtTime(840, now + 0.42);
+
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.7, now);
+      osc1.connect(oscGain);
+      osc2.connect(oscGain);
+
+      // 2. Breath Texture (subtle pink/white noise for organic breathiness)
+      const bufferSize = Math.floor(ctx.sampleRate * 0.45);
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * 0.12;
+      }
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(1400, now);
+      noiseFilter.Q.setValueAtTime(2.0, now);
+
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, now);
+      noiseGain.gain.linearRampToValueAtTime(0.03, now + 0.08);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+
+      noiseSource.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+
+      // 3. Formant Vocal Tract Filters (F1 mouth opening, F2 vowel shift)
+      const formantF1 = ctx.createBiquadFilter();
+      formantF1.type = 'bandpass';
+      formantF1.frequency.setValueAtTime(750, now);
+      formantF1.frequency.linearRampToValueAtTime(950, now + 0.12);
+      formantF1.frequency.exponentialRampToValueAtTime(550, now + 0.42);
+      formantF1.Q.setValueAtTime(3.0, now);
+
+      const formantF2 = ctx.createBiquadFilter();
+      formantF2.type = 'peaking';
+      formantF2.frequency.setValueAtTime(1800, now);
+      formantF2.frequency.linearRampToValueAtTime(2100, now + 0.12);
+      formantF2.frequency.exponentialRampToValueAtTime(1200, now + 0.42);
+      formantF2.gain.setValueAtTime(7, now);
+      formantF2.Q.setValueAtTime(2.5, now);
+
+      // 4. Master Output Stage (Soft, gentle kitten-level volume)
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.0001, now);
+      masterGain.gain.linearRampToValueAtTime(0.09, now + 0.06);
+      masterGain.gain.linearRampToValueAtTime(0.08, now + 0.24);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.44);
+
+      // Connect graph
+      oscGain.connect(formantF1);
+      noiseGain.connect(formantF1);
+      formantF1.connect(formantF2);
+      formantF2.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      vibrato.start(now);
+      noiseSource.start(now);
+
+      const stopTime = now + 0.45;
+      osc1.stop(stopTime);
+      osc2.stop(stopTime);
+      vibrato.stop(stopTime);
+      noiseSource.stop(stopTime);
+    } catch {}
+  }
+
+  playChirp() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const trill = ctx.createOscillator();
+      const trillGain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
       const gain = ctx.createGain();
 
-      // Pitch vibrato (cute gentle wobble on the high note)
-      vibrato.frequency.setValueAtTime(5.8, now);
-      vibratoGain.gain.setValueAtTime(0, now);
-      vibratoGain.gain.linearRampToValueAtTime(14, now + 0.18);
-      vibratoGain.gain.linearRampToValueAtTime(0, now + 0.42);
-      vibrato.connect(vibratoGain);
-      vibratoGain.connect(osc.frequency);
-      vibratoGain.connect(oscHarmonic.frequency);
+      // Rapid trill modulation (fluttering vocal roll at 25Hz)
+      trill.frequency.setValueAtTime(25, now);
+      trillGain.gain.setValueAtTime(22, now);
+      trillGain.gain.exponentialRampToValueAtTime(4, now + 0.22);
+      trill.connect(trillGain);
+      trillGain.connect(osc.frequency);
 
-      // Warm triangle wave for organic sweetness
+      // Rising friendly inflection (440Hz -> 680Hz)
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(450, now);
-      osc.frequency.exponentialRampToValueAtTime(760, now + 0.14);
-      osc.frequency.exponentialRampToValueAtTime(720, now + 0.28);
-      osc.frequency.exponentialRampToValueAtTime(480, now + 0.50);
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(680, now + 0.14);
+      osc.frequency.exponentialRampToValueAtTime(620, now + 0.24);
 
-      // Subtle sine overtone for vocal warmth
-      oscHarmonic.type = 'sine';
-      oscHarmonic.frequency.setValueAtTime(900, now);
-      oscHarmonic.frequency.exponentialRampToValueAtTime(1520, now + 0.14);
-      oscHarmonic.frequency.exponentialRampToValueAtTime(960, now + 0.50);
-
-      // Lowpass filter for warm, rounded kitten tone
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(1200, now);
-      filter.frequency.linearRampToValueAtTime(2200, now + 0.16);
-      filter.frequency.exponentialRampToValueAtTime(900, now + 0.50);
-      filter.Q.setValueAtTime(1.8, now);
+      filter.frequency.setValueAtTime(2400, now);
+      filter.Q.setValueAtTime(1.5, now);
 
-      // Gentle envelope: soft attack, warm sustain, gentle release
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(0.20, now + 0.08);
-      gain.gain.linearRampToValueAtTime(0.18, now + 0.26);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.50);
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
 
       osc.connect(filter);
-      oscHarmonic.connect(filter);
       filter.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      oscHarmonic.start(now);
-      vibrato.start(now);
-
-      osc.stop(now + 0.50);
-      oscHarmonic.stop(now + 0.50);
-      vibrato.stop(now + 0.50);
+      trill.start(now);
+      osc.stop(now + 0.25);
+      trill.stop(now + 0.25);
     } catch {}
   }
+
   playPurr() {
     try {
       const ctx = this.getContext();
       if (!ctx) return;
       const now = ctx.currentTime;
 
-      // Authentic cat purr: deep ~58Hz base tone modulated with 24Hz laryngeal flutter
-      const carrier = ctx.createOscillator();
-      const carrier2 = ctx.createOscillator();
-      const mod = ctx.createOscillator();
-      const modGain = ctx.createGain();
+      // Multi-harmonic warm purr (audible and cozy across laptop & mobile speakers)
+      const f0 = ctx.createOscillator(); // ~72 Hz fundamental
+      const f1 = ctx.createOscillator(); // ~144 Hz 2nd harmonic
+      const f2 = ctx.createOscillator(); // ~216 Hz 3rd harmonic
+      const flutter = ctx.createOscillator(); // 23 Hz laryngeal flutter
+      const flutterGain = ctx.createGain();
       const tremolo = ctx.createGain();
-      const masterGain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
+      const masterGain = ctx.createGain();
 
-      carrier.type = 'triangle';
-      carrier.frequency.setValueAtTime(58, now);
-      carrier.frequency.linearRampToValueAtTime(62, now + 0.3);
-      carrier.frequency.linearRampToValueAtTime(56, now + 0.7);
+      f0.type = 'triangle';
+      f0.frequency.setValueAtTime(72, now);
+      f0.frequency.linearRampToValueAtTime(76, now + 0.3);
+      f0.frequency.linearRampToValueAtTime(70, now + 0.65);
 
-      carrier2.type = 'sine';
-      carrier2.frequency.setValueAtTime(116, now);
-      carrier2.frequency.linearRampToValueAtTime(124, now + 0.3);
-      carrier2.frequency.linearRampToValueAtTime(112, now + 0.7);
+      f1.type = 'sine';
+      f1.frequency.setValueAtTime(144, now);
+      f1.frequency.linearRampToValueAtTime(152, now + 0.3);
+      f1.frequency.linearRampToValueAtTime(140, now + 0.65);
 
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(260, now);
+      f2.type = 'sine';
+      f2.frequency.setValueAtTime(216, now);
 
-      // 24 Hz laryngeal vibration flutter
-      mod.type = 'sawtooth';
-      mod.frequency.setValueAtTime(24, now);
+      // 23 Hz diaphragmatic flutter
+      flutter.type = 'sine';
+      flutter.frequency.setValueAtTime(23, now);
+      flutterGain.gain.setValueAtTime(0.42, now);
+      flutter.connect(flutterGain);
+      flutterGain.connect(tremolo.gain);
 
       tremolo.gain.setValueAtTime(0.5, now);
-      modGain.gain.setValueAtTime(0.5, now);
-      mod.connect(modGain);
-      modGain.connect(tremolo.gain);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(380, now);
 
       masterGain.gain.setValueAtTime(0.0001, now);
-      masterGain.gain.linearRampToValueAtTime(0.24, now + 0.1);
-      masterGain.gain.linearRampToValueAtTime(0.20, now + 0.5);
-      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+      masterGain.gain.linearRampToValueAtTime(0.11, now + 0.08);
+      masterGain.gain.linearRampToValueAtTime(0.09, now + 0.45);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.68);
 
-      carrier.connect(tremolo);
-      carrier2.connect(tremolo);
+      f0.connect(tremolo);
+      f1.connect(tremolo);
+      f2.connect(tremolo);
       tremolo.connect(filter);
       filter.connect(masterGain);
       masterGain.connect(ctx.destination);
 
-      carrier.start(now);
-      carrier2.start(now);
-      mod.start(now);
+      f0.start(now);
+      f1.start(now);
+      f2.start(now);
+      flutter.start(now);
 
-      carrier.stop(now + 0.75);
-      carrier2.stop(now + 0.75);
-      mod.stop(now + 0.75);
+      const stopTime = now + 0.70;
+      f0.stop(stopTime);
+      f1.stop(stopTime);
+      f2.stop(stopTime);
+      flutter.stop(stopTime);
     } catch {}
   }
 }
@@ -1790,9 +1887,9 @@ class RecipeApp {
         // Randomly choose between a sweet meow, friendly chirp, or cozy purr
         const wakeVariants = [
           { sound: () => this.soundEffects.playMeow(), text: 'Meow! 🐾' },
-          { sound: () => this.soundEffects.playMeow(), text: 'Mrrp! ✨' },
+          { sound: () => this.soundEffects.playChirp(), text: 'Mrrp! ✨' },
           { sound: () => this.soundEffects.playPurr(), text: 'Purrr... 💕' },
-          { sound: () => this.soundEffects.playPurr(), text: 'Prrr! 🐾' }
+          { sound: () => this.soundEffects.playChirp(), text: 'Prrr! 🐾' }
         ];
         const chosen = wakeVariants[Math.floor(Math.random() * wakeVariants.length)];
         chosen.sound();
