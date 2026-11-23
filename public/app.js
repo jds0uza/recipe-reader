@@ -579,6 +579,98 @@ function extractRecipeFromHtml(html, sourceUrl) {
   throw new Error('No schema.org/Recipe JSON-LD script found in HTML');
 }
 
+function parseRecipeFromPlainText(rawText) {
+  const text = (rawText || '').trim();
+  if (!text) return null;
+
+  if (text.startsWith('{') || text.includes('"@type"') || text.includes('<script') || text.includes('<html')) {
+    try {
+      if (text.startsWith('{')) {
+        return parseRecipeFromSchema(JSON.parse(text), 'Pasted JSON-LD');
+      }
+      return extractRecipeFromHtml(text, 'Pasted HTML');
+    } catch {}
+  }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+
+  let title = lines[0].replace(/^#+\s*/, '').replace(/[:*]+$/, '').trim();
+  let servings = 4;
+  const ingredients = [];
+  const steps = [];
+
+  let mode = 'preamble';
+  let currentGroup = undefined;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lower = line.toLowerCase();
+
+    const servingsMatch = lower.match(/(?:yield|servings?|serves)\s*[:=-]?\s*(\d+)/i);
+    if (servingsMatch) {
+      servings = parseInt(servingsMatch[1], 10) || 4;
+      continue;
+    }
+
+    if (/^(?:ingredients|for the [a-z0-9\s]+|what you need|shopping list)[:\s]*$/i.test(line) || /^#{1,3}\s*ingredients/i.test(line)) {
+      mode = 'ingredients';
+      continue;
+    }
+    if (/^(?:directions|instructions|steps|method|preparation|how to make it)[:\s]*$/i.test(line) || /^#{1,3}\s*(?:directions|instructions|steps|method)/i.test(line)) {
+      mode = 'steps';
+      continue;
+    }
+
+    if (mode === 'ingredients') {
+      if (isIngredientHeader(line)) {
+        currentGroup = formatGroupTitle(line);
+        continue;
+      }
+      const cleanLine = line.replace(/^[-*•]\s*/, '').trim();
+      if (cleanLine) {
+        const ing = parseIngredient(cleanLine, `ing-${ingredients.length + 1}`);
+        if (currentGroup) ing.group = currentGroup;
+        ingredients.push(ing);
+      }
+    } else if (mode === 'steps') {
+      const cleanStep = line.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*•]\s*/, '').trim();
+      if (cleanStep) {
+        steps.push({
+          id: steps.length + 1,
+          instruction: cleanStep
+        });
+      }
+    } else {
+      if (/^\d+[\.\)]\s+[a-zA-Z]/.test(line)) {
+        mode = 'steps';
+        steps.push({ id: steps.length + 1, instruction: line.replace(/^\d+[\.\)]\s*/, '').trim() });
+      } else if (/^[-*•]\s+/.test(line) || /^(\d+[/\d\s]*\s*(?:cup|tsp|tbsp|oz|g|lb|clove|pinch))/i.test(line)) {
+        mode = 'ingredients';
+        const cleanLine = line.replace(/^[-*•]\s*/, '').trim();
+        ingredients.push(parseIngredient(cleanLine, `ing-${ingredients.length + 1}`));
+      } else if (i === 0 && line.length < 80) {
+        title = line.replace(/^#+\s*/, '').trim();
+      }
+    }
+  }
+
+  if (steps.length === 0) {
+    throw new Error('Please include at least one cooking instruction step.');
+  }
+
+  return {
+    id: `recipe-${Date.now()}`,
+    title: title || 'Custom Recipe',
+    description: 'Pasted custom recipe',
+    originalServings: servings,
+    currentServings: servings,
+    scaleFactor: 1.0,
+    ingredients,
+    steps
+  };
+}
+
 function formatIngredientForVoice(ingredient, scaleFactor = 1.0) {
   if (ingredient.quantity === null) {
     return ingredient.name + (ingredient.notes ? `, ${ingredient.notes}` : '');
@@ -2336,13 +2428,59 @@ class RecipeApp {
       });
     });
 
+    // Loader Tabs & Recipe Input Modes
+    const tabUrl = document.getElementById('tabUrlMode');
+    const tabText = document.getElementById('tabTextMode');
+    const urlContainer = document.getElementById('urlModeContainer');
+    const textContainer = document.getElementById('textModeContainer');
+
+    this.switchLoaderTab = (mode) => {
+      if (mode === 'url') {
+        tabUrl?.classList.add('active');
+        tabUrl?.setAttribute('aria-selected', 'true');
+        tabText?.classList.remove('active');
+        tabText?.setAttribute('aria-selected', 'false');
+        if (urlContainer) urlContainer.hidden = false;
+        if (textContainer) textContainer.hidden = true;
+      } else {
+        tabText?.classList.add('active');
+        tabText?.setAttribute('aria-selected', 'true');
+        tabUrl?.classList.remove('active');
+        tabUrl?.setAttribute('aria-selected', 'false');
+        if (urlContainer) urlContainer.hidden = true;
+        if (textContainer) textContainer.hidden = false;
+        document.getElementById('recipeTextInput')?.focus();
+      }
+    };
+
+    tabUrl?.addEventListener('click', () => this.switchLoaderTab('url'));
+    tabText?.addEventListener('click', () => this.switchLoaderTab('text'));
+
     // URL Loading
-    document.getElementById('btnLoadUrl').addEventListener('click', () => {
-      const url = document.getElementById('recipeUrlInput').value.trim();
+    document.getElementById('btnLoadUrl')?.addEventListener('click', () => {
+      const url = document.getElementById('recipeUrlInput')?.value.trim();
       if (url) this.fetchRecipeFromUrl(url);
     });
 
-    document.getElementById('sampleSelect').addEventListener('change', (e) => {
+    // Plain Text Recipe Loading
+    document.getElementById('btnLoadText')?.addEventListener('click', () => {
+      const text = document.getElementById('recipeTextInput')?.value.trim();
+      if (!text) {
+        alert('Please paste some recipe text or instructions first.');
+        return;
+      }
+      try {
+        const recipe = parseRecipeFromPlainText(text);
+        if (recipe) {
+          this.recordAudit(`Loaded custom recipe: ${recipe.title}`);
+          this.loadRecipe(recipe);
+        }
+      } catch (err) {
+        alert(err.message || 'Could not parse recipe from the pasted text.');
+      }
+    });
+
+    document.getElementById('sampleSelect')?.addEventListener('change', (e) => {
       const val = e.target.value;
       if (val) this.loadSampleRecipe(val);
     });
@@ -2819,16 +2957,11 @@ class RecipeApp {
       return;
     }
 
-    // 2. Direct JSON-LD or HTML markup pasted in
-    if (input.startsWith('{') || input.includes('"@type"') || input.includes('<script') || input.includes('<html')) {
+    // 2. Direct plain text recipe or JSON-LD/HTML markup pasted into URL input
+    if (input.includes('\n') || input.startsWith('{') || input.includes('"@type"') || input.includes('<script') || input.includes('<html')) {
       try {
-        this.recordAudit('Parsing pasted recipe markup...');
-        let recipe;
-        if (input.startsWith('{')) {
-          recipe = parseRecipeFromSchema(JSON.parse(input), 'Pasted Recipe');
-        } else {
-          recipe = extractRecipeFromHtml(input, 'Pasted HTML');
-        }
+        this.recordAudit('Parsing pasted recipe content...');
+        const recipe = parseRecipeFromPlainText(input);
         if (recipe && recipe.steps.length > 0) {
           this.loadRecipe(recipe);
           return;
@@ -2861,39 +2994,52 @@ class RecipeApp {
       }
     }
 
-    // 4. Client-side extraction via CORS proxies (for GitHub Pages & static hosting)
+    // 4. Client-side extraction via multi-gateway CORS proxies (for GitHub Pages & static hosting)
     const proxyGateways = [
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(input)}`,
-      `https://corsproxy.io/?url=${encodeURIComponent(input)}`
+      {
+        url: `https://api.allorigins.win/get?url=${encodeURIComponent(input)}`,
+        extract: async (res) => {
+          const data = await res.json();
+          return data.contents;
+        }
+      },
+      {
+        url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(input)}`,
+        extract: async (res) => res.text()
+      },
+      {
+        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(input)}`,
+        extract: async (res) => res.text()
+      }
     ];
 
-    for (const proxyUrl of proxyGateways) {
+    for (const proxy of proxyGateways) {
       try {
-        this.recordAudit('Fetching via CORS proxy...');
-        const response = await fetch(proxyUrl);
+        this.recordAudit('Attempting extraction via CORS gateway...');
+        const response = await fetch(proxy.url);
         if (response.ok) {
-          const html = await response.text();
-          const recipe = extractRecipeFromHtml(html, input);
-          if (recipe && recipe.steps.length > 0) {
-            this.recordAudit(`Extracted: ${recipe.title}`);
-            this.loadRecipe(recipe);
-            return;
+          const html = await proxy.extract(response);
+          if (html && html.length > 100) {
+            const recipe = extractRecipeFromHtml(html, input);
+            if (recipe && recipe.steps.length > 0) {
+              this.recordAudit(`Extracted: ${recipe.title}`);
+              this.loadRecipe(recipe);
+              return;
+            }
           }
         }
       } catch (proxyErr) {
-        console.warn(`Proxy ${proxyUrl} failed:`, proxyErr);
+        console.warn(`Proxy ${proxy.url} failed:`, proxyErr);
       }
     }
 
-    // 5. Friendly GitHub Pages static hosting explanation
+    // 5. Friendly GitHub Pages static hosting explanation with automatic switch to Text Mode
     const isGitHubPages = window.location.hostname.endsWith('github.io');
     if (isGitHubPages || !isLocalhost) {
+      if (this.switchLoaderTab) this.switchLoaderTab('text');
       alert(
-        'GitHub Pages is a static host, and this external website blocked third-party scrapers (CORS).\n\n' +
-        'Tips to continue:\n' +
-        '• Choose a recipe from the "Or start with a sample" dropdown below.\n' +
-        '• Or paste the recipe\'s text or JSON-LD into the box.\n' +
-        '• Or run `npm start` locally for full server-side scraping.'
+        'This recipe website blocked third-party scrapers (CORS protection).\n\n' +
+        'We switched you to the "Paste Recipe Text" tab! Simply copy and paste the recipe text or instructions from the page and click "Start Cooking".'
       );
     } else {
       alert('Could not extract recipe from this URL. Please verify the URL or try another recipe.');

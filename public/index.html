@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f5f1e8" />
   <title>SousChef — Hands-free recipe guidance</title>
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="stylesheet" href="style.css?v=28" />
+  <link rel="stylesheet" href="style.css?v=29" />
   <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg" />
 </head>
 
@@ -93,27 +93,46 @@
       </div>
 
       <div class="loader-panel">
-        <label for="recipeUrlInput">Recipe URL</label>
-        <div class="url-bar">
-          <span class="input-icon"><svg>
-              <use href="#icon-link"></use>
-            </svg></span>
-          <input type="url" id="recipeUrlInput" class="url-input" placeholder="https://your-favorite-recipe.com/..." />
-          <button class="btn-primary" id="btnLoadUrl">
-            <span>Go!</span>
-            <svg>
-              <use href="#icon-forward"></use>
-            </svg>
-          </button>
+        <div class="loader-tab-row" role="tablist">
+          <button id="tabUrlMode" class="btn-loader-tab active" type="button" role="tab" aria-selected="true">🔗 Recipe URL</button>
+          <button id="tabTextMode" class="btn-loader-tab" type="button" role="tab" aria-selected="false">📋 Paste Recipe Text</button>
         </div>
-        <div class="sample-row">
-          <span>Or start with a sample</span>
-          <select id="sampleSelect" class="sample-select" aria-label="Choose a sample recipe">
-            <option value="">Choose a recipe</option>
-            <option value="cookies">Chocolate chip cookies</option>
-            <option value="chicken">Tuscan garlic chicken</option>
-            <option value="pancakes">Blueberry pancakes</option>
-          </select>
+
+        <div id="urlModeContainer">
+          <div class="url-bar">
+            <span class="input-icon"><svg>
+                <use href="#icon-link"></use>
+              </svg></span>
+            <input type="url" id="recipeUrlInput" class="url-input" placeholder="https://your-favorite-recipe.com/..." />
+            <button class="btn-primary" id="btnLoadUrl">
+              <span>Go!</span>
+              <svg>
+                <use href="#icon-forward"></use>
+              </svg>
+            </button>
+          </div>
+          <div class="sample-row">
+            <span>Or start with a sample</span>
+            <select id="sampleSelect" class="sample-select" aria-label="Choose a sample recipe">
+              <option value="">Choose a recipe</option>
+              <option value="cookies">Chocolate chip cookies</option>
+              <option value="chicken">Tuscan garlic chicken</option>
+              <option value="pancakes">Blueberry pancakes</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="textModeContainer" class="text-mode-container" hidden>
+          <p class="text-mode-hint">Copy & paste any recipe's text, ingredients & instructions, or JSON-LD:</p>
+          <textarea id="recipeTextInput" class="recipe-text-input" rows="4" placeholder="Classic Pancakes&#10;Yield: 4 servings&#10;&#10;Ingredients:&#10;• 1 1/2 cups flour&#10;• 1 cup milk&#10;• 1 egg&#10;&#10;Instructions:&#10;1. Whisk flour, milk, and egg in a bowl.&#10;2. Cook on medium-heat griddle for 3 mins per side."></textarea>
+          <div class="text-mode-actions">
+            <button class="btn-primary btn-load-text" id="btnLoadText">
+              <span>Start Cooking</span>
+              <svg>
+                <use href="#icon-forward"></use>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -465,7 +484,7 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=28"></script>
+  <script type="module" src="app.js?v=29"></script>
 </body>
 
 </html>

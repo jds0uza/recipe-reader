@@ -232,6 +232,72 @@ main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
   box-shadow: 0 20px 55px rgba(0,0,0,0.18);
 }
 
+.loader-tab-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.btn-loader-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.btn-loader-tab:hover {
+  color: var(--forest);
+  background: var(--forest-pale);
+}
+
+.btn-loader-tab.active {
+  background: var(--forest-pale);
+  color: var(--forest);
+  border-color: rgba(44, 76, 56, 0.2);
+}
+
+.recipe-text-input {
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: white;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.recipe-text-input:focus {
+  border-color: var(--forest);
+  box-shadow: inset 0 0 0 1px var(--forest);
+}
+
+.text-mode-hint {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.55rem;
+}
+
+.text-mode-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.65rem;
+}
+
+.btn-load-text {
+  border-radius: 0.6rem;
+  padding: 0.75rem 1.25rem;
+}
+
 .loader-panel label { display: block; margin-bottom: 0.55rem; font-size: 0.8rem; font-weight: 700; }
 .url-bar { display: flex; position: relative; }
 .input-icon { position: absolute; z-index: 1; left: 0.9rem; top: 50%; color: var(--ink-faint); transform: translateY(-50%); }
