@@ -3,7 +3,7 @@
 > **An hands-free voice interface for kitchen recipe navigation.**  
 > Built as an audio-first engineering showcase with swappable TTS/STT providers—running with native browser speech synthesis today, architected for ElevenLabs streaming voice integration.
 
-[![Tests](https://img.shields.io/badge/tests-53%20passing-brightgreen.svg)](file:///Users/jdsouza/aifun/recipe%20reader/test)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](file:///Users/jdsouza/aifun/recipe%20reader/test)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20external-blue.svg)](file:///Users/jdsouza/aifun/recipe%20reader/package.json)
 [![Offline First](https://img.shields.io/badge/offline-100%25-success.svg)](file:///Users/jdsouza/aifun/recipe%20reader)
 [![Audio Architecture](https://img.shields.io/badge/voice-ElevenLabs--Ready-orange.svg)](file:///Users/jdsouza/aifun/recipe%20reader/src/voice/tts-provider.ts)
@@ -109,7 +109,7 @@ Kitchen environments present unique full-duplex audio challenges. SousChef solve
 
 ## 🧪 Comprehensive Offline Test Suite
 
-SousChef includes 53 unit and integration tests executing natively in Node 24 with **zero external dependencies**:
+SousChef includes a comprehensive unit and integration test suite executing natively in Node 24 with **zero external dependencies**:
 
 ```bash
 npm test
@@ -117,14 +117,13 @@ npm test
 
 ### Test Coverage Highlights
 
-| Test Suite | Focus Areas | Tests | Status |
-| :--- | :--- | :---: | :---: |
-| [state-machine.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/state-machine.test.ts) | State transitions, sequential traversal, bounds, observers, state snapshots | 20 | ✅ Passed |
-| [recipe-scaler.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-scaler.test.ts) | Fraction parsing, unicode normalization, phonetic voice text formatting | 10 | ✅ Passed |
-| [command-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/command-parser.test.ts) | Voice intent classification, step timers, feedback exclusions & interrupts | 16 | ✅ Passed |
-| [recipe-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-parser.test.ts) | Schema.org JSON-LD extraction, ISO durations, yield parsing | 6 | ✅ Passed |
-| [integration.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/integration.test.ts) | Full cooking lifecycle: load $\rightarrow$ query $\rightarrow$ traverse $\rightarrow$ interrupt $\rightarrow$ complete | 1 | ✅ Passed |
-| **Total** | | **53** | **100% Pass** |
+| Test Suite | Focus Areas | Status |
+| :--- | :--- | :---: |
+| [state-machine.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/state-machine.test.ts) | State transitions, sequential traversal, bounds, observers, state snapshots | ✅ Passing |
+| [recipe-scaler.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-scaler.test.ts) | Fraction parsing, unicode normalization, phonetic voice text formatting | ✅ Passing |
+| [command-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/command-parser.test.ts) | Voice intent classification, step timers, feedback exclusions & interrupts | ✅ Passing |
+| [recipe-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-parser.test.ts) | Schema.org JSON-LD extraction, ISO durations, yield parsing | ✅ Passing |
+| [integration.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/integration.test.ts) | Full cooking lifecycle: load $\rightarrow$ query $\rightarrow$ traverse $\rightarrow$ interrupt $\rightarrow$ complete | ✅ Passing |
 
 ---
 

@@ -1153,20 +1153,28 @@ class KitchenTimerManager {
     return stoppedAny;
   }
 
-  cancelTimer(timerId = null) {
+  cancelTimer(timerId = null, speakAnnouncement = true) {
     if (!timerId) {
       if (this.timers.length === 0) {
-        this.app.speech.speak('There are no active timers to cancel.');
+        if (speakAnnouncement) this.app.speech.speak('There are no active timers to cancel.');
         return;
       }
       const removed = this.timers.pop();
-      this.app.speech.speak(`${removed.label} timer cancelled.`);
+      if (speakAnnouncement) {
+        const isStep = removed.label && removed.label.toLowerCase().startsWith('step ');
+        const name = (removed.label && removed.label !== 'Timer' && !isStep) ? `${removed.label} timer` : 'timer';
+        this.app.speech.speak(`${name} cancelled.`);
+      }
       this.app.recordAudit(`⏱️ Timer cancelled: "${removed.label}"`);
     } else {
       const idx = this.timers.findIndex(t => t.id === timerId);
       if (idx !== -1) {
         const [removed] = this.timers.splice(idx, 1);
-        this.app.speech.speak(`${removed.label} timer cancelled.`);
+        if (speakAnnouncement) {
+          const isStep = removed.label && removed.label.toLowerCase().startsWith('step ');
+          const name = (removed.label && removed.label !== 'Timer' && !isStep) ? `${removed.label} timer` : 'timer';
+          this.app.speech.speak(`${name} cancelled.`);
+        }
         this.app.recordAudit(`⏱️ Timer cancelled: "${removed.label}"`);
       }
     }
@@ -1276,7 +1284,7 @@ class KitchenTimerManager {
         } else if (action === 'toggle') {
           this.togglePause(id);
         } else if (action === 'cancel') {
-          this.cancelTimer(id);
+          this.cancelTimer(id, false);
         }
       });
     });
