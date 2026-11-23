@@ -128,40 +128,49 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
     return { action: 'CHECK_TIMER', rawTranscript };
   }
 
-  // Set Timer: requires explicit imperative command (e.g. "set a timer for 10 minutes", "start 5 minute timer", "pasta timer 8 minutes")
+  // Set Timer: requires explicit imperative command (e.g. "set a timer for 10 minutes", "start 5 minute timer", "pasta timer 8 minutes", "set the timer")
   // Must NOT trigger on descriptive utterances like "starting a 10 minute timer", "Step 3 bake for 10 minutes", or "timer is done"
   const isExcludedTimerPhrase =
-    /^(?:starting|your|the)\b/i.test(text) ||
-    /\b(?:done|completed|finished|cancelled|canceled|started|remaining)\b/i.test(text) ||
+    /^(?:starting|your|there\s+is|here\s+is)\b/i.test(text) ||
+    /\b(?:done|completed|finished|cancelled|canceled|started|remaining|running)\b/i.test(text) ||
     /^step\s+\d+/i.test(text);
 
   const isSetTimerCommand =
     !isExcludedTimerPhrase &&
-    (/^(?:please\s+)?(?:set|start|create|begin|new)\s+(?:a\s+)?(?:([a-z0-9\s]+?)\s+)?timer\b/i.test(text) ||
-     /^(?:please\s+)?(?:set|start)\s+(?:a\s+)?(.+?)\s+timer$/i.test(text) ||
-     /^(?:please\s+)?(?:([a-z0-9\s]+?)\s+)?timer\s+(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)/i.test(text));
+    (/^(?:please\s+)?(?:set|start|create|begin|new)\s+(?:a\s+|the\s+)?(?:([a-z0-9\s]+?)\s+)?timer\b/i.test(text) ||
+     /^(?:please\s+)?(?:set|start)\s+(?:a\s+|the\s+)?(.+?)\s+timer$/i.test(text) ||
+     /^(?:please\s+)?(?:([a-z0-9\s]+?)\s+)?timer\s+(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)/i.test(text) ||
+     /^(?:please\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)\s+(?:minute|min|hour|second|sec)s?\s+timer$/i.test(text));
 
   if (isSetTimerCommand) {
     const durationSeconds = parseDurationSeconds(text);
-    if (durationSeconds && durationSeconds > 0) {
-      let timerLabel = 'Timer';
-      const labelMatch = text.match(/(?:set|start|create)\s+(?:a\s+)?([a-z0-9\s]+?)\s+timer/i);
-      const labelAfterMatch = text.match(/timer\s+for\s+([a-z]+)\s+for/i);
-      const prefixLabelMatch = text.match(/^([a-z]+)\s+timer/i);
+    let timerLabel = 'Timer';
+    const labelMatch = text.match(/(?:set|start|create)\s+(?:a\s+|the\s+)?([a-z0-9\s]+?)\s+timer/i);
+    const labelAfterMatch = text.match(/timer\s+for\s+([a-z]+)\s+for/i);
+    const prefixLabelMatch = text.match(/^([a-z]+)\s+timer/i);
 
-      if (labelAfterMatch && labelAfterMatch[1]) {
-        timerLabel = labelAfterMatch[1].trim();
-      } else if (labelMatch && !['kitchen', 'cooking', 'new', 'quick', ''].includes(labelMatch[1].trim())) {
-        timerLabel = labelMatch[1].trim();
-      } else if (prefixLabelMatch && !['kitchen', 'cooking', 'new', 'quick', 'a', 'the', ''].includes(prefixLabelMatch[1].trim())) {
-        timerLabel = prefixLabelMatch[1].trim();
-      }
-      return {
-        action: 'SET_TIMER',
-        payload: { durationSeconds, timerLabel },
-        rawTranscript
-      };
+    let rawLabel = '';
+    if (labelAfterMatch && labelAfterMatch[1]) {
+      rawLabel = labelAfterMatch[1].trim();
+    } else if (labelMatch && labelMatch[1]) {
+      rawLabel = labelMatch[1].trim();
+    } else if (prefixLabelMatch && prefixLabelMatch[1]) {
+      rawLabel = prefixLabelMatch[1].trim();
     }
+
+    const cleanedLabel = rawLabel
+      .replace(/\b(?:minutes?|mins?|seconds?|secs?|hours?|hrs?|\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter|a|the|kitchen|cooking|new|quick)\b/gi, '')
+      .trim();
+
+    if (cleanedLabel) {
+      timerLabel = cleanedLabel;
+    }
+
+    return {
+      action: 'SET_TIMER',
+      payload: { durationSeconds, timerLabel },
+      rawTranscript
+    };
   }
 
   // Stop / Pause / Silence (Top priority to interrupt speech)

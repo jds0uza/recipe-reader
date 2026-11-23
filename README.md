@@ -170,9 +170,3 @@ const tts = new ElevenLabsTTSAdapter({
 await tts.speak("Step 1. Preheat your oven to 375 degrees.");
 ```
 2. The state machine and command parser require zero modifications—audio delivery is completely decoupled from recipe logic!
-
----
-
-## 📜 License
-
-MIT

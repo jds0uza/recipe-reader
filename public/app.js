@@ -561,40 +561,49 @@ function parseVoiceCommand(text) {
     return { action: 'CHECK_TIMER', rawTranscript: text };
   }
 
-  // Set Timer: requires explicit imperative command (e.g. "set a timer for 10 minutes", "start 5 minute timer", "pasta timer 8 minutes")
+  // Set Timer: requires explicit imperative command (e.g. "set a timer for 10 minutes", "start 5 minute timer", "pasta timer 8 minutes", "set the timer")
   // Must NOT trigger on descriptive utterances like "starting a 10 minute timer", "Step 3 bake for 10 minutes", or "timer is done"
   const isExcludedTimerPhrase =
-    /^(?:starting|your|the)\b/i.test(clean) ||
-    /\b(?:done|completed|finished|cancelled|canceled|started|remaining)\b/i.test(clean) ||
+    /^(?:starting|your|there\s+is|here\s+is)\b/i.test(clean) ||
+    /\b(?:done|completed|finished|cancelled|canceled|started|remaining|running)\b/i.test(clean) ||
     /^step\s+\d+/i.test(clean);
 
   const isSetTimerCommand =
     !isExcludedTimerPhrase &&
-    (/^(?:please\s+)?(?:set|start|create|begin|new)\s+(?:a\s+)?(?:([a-z0-9\s]+?)\s+)?timer\b/i.test(clean) ||
-     /^(?:please\s+)?(?:set|start)\s+(?:a\s+)?(.+?)\s+timer$/i.test(clean) ||
-     /^(?:please\s+)?(?:([a-z0-9\s]+?)\s+)?timer\s+(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)/i.test(clean));
+    (/^(?:please\s+)?(?:set|start|create|begin|new)\s+(?:a\s+|the\s+)?(?:([a-z0-9\s]+?)\s+)?timer\b/i.test(clean) ||
+     /^(?:please\s+)?(?:set|start)\s+(?:a\s+|the\s+)?(.+?)\s+timer$/i.test(clean) ||
+     /^(?:please\s+)?(?:([a-z0-9\s]+?)\s+)?timer\s+(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)/i.test(clean) ||
+     /^(?:please\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)\s+(?:minute|min|hour|second|sec)s?\s+timer$/i.test(clean));
 
   if (isSetTimerCommand) {
     const durationSeconds = parseDurationSeconds(clean);
-    if (durationSeconds && durationSeconds > 0) {
-      let timerLabel = 'Timer';
-      const labelMatch = clean.match(/(?:set|start|create)\s+(?:a\s+)?([a-z0-9\s]+?)\s+timer/i);
-      const labelAfterMatch = clean.match(/timer\s+for\s+([a-z]+)\s+for/i);
-      const prefixLabelMatch = clean.match(/^([a-z]+)\s+timer/i);
+    let timerLabel = 'Timer';
+    const labelMatch = clean.match(/(?:set|start|create)\s+(?:a\s+|the\s+)?([a-z0-9\s]+?)\s+timer/i);
+    const labelAfterMatch = clean.match(/timer\s+for\s+([a-z]+)\s+for/i);
+    const prefixLabelMatch = clean.match(/^([a-z]+)\s+timer/i);
 
-      if (labelAfterMatch && labelAfterMatch[1]) {
-        timerLabel = labelAfterMatch[1].trim();
-      } else if (labelMatch && !['kitchen', 'cooking', 'new', 'quick', ''].includes(labelMatch[1].trim())) {
-        timerLabel = labelMatch[1].trim();
-      } else if (prefixLabelMatch && !['kitchen', 'cooking', 'new', 'quick', 'a', 'the', ''].includes(prefixLabelMatch[1].trim())) {
-        timerLabel = prefixLabelMatch[1].trim();
-      }
-      return {
-        action: 'SET_TIMER',
-        payload: { durationSeconds, timerLabel },
-        rawTranscript: text
-      };
+    let rawLabel = '';
+    if (labelAfterMatch && labelAfterMatch[1]) {
+      rawLabel = labelAfterMatch[1].trim();
+    } else if (labelMatch && labelMatch[1]) {
+      rawLabel = labelMatch[1].trim();
+    } else if (prefixLabelMatch && prefixLabelMatch[1]) {
+      rawLabel = prefixLabelMatch[1].trim();
     }
+
+    const cleanedLabel = rawLabel
+      .replace(/\b(?:minutes?|mins?|seconds?|secs?|hours?|hrs?|\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter|a|the|kitchen|cooking|new|quick)\b/gi, '')
+      .trim();
+
+    if (cleanedLabel) {
+      timerLabel = cleanedLabel;
+    }
+
+    return {
+      action: 'SET_TIMER',
+      payload: { durationSeconds, timerLabel },
+      rawTranscript: text
+    };
   }
 
   // Stop / Pause / Silence (Top priority to interrupt assistant speech)
@@ -672,6 +681,11 @@ class SpeechManager {
       this.isSpeaking = false;
       this.echoDecayUntil = Date.now() + 850; // 850ms speaker echo cancellation cooldown
       document.getElementById('speechStatusIndicator').style.display = 'none';
+      setTimeout(() => {
+        if (!this.isSpeaking) {
+          this.currentSpokenText = '';
+        }
+      }, 900);
       if (onEnd) onEnd();
     };
 
@@ -694,6 +708,7 @@ class SpeechManager {
     if (this.synth) {
       this.isSpeaking = false;
       this.echoDecayUntil = Date.now() + 1200; // 1.2s acoustic echo flush
+      this.currentSpokenText = '';
       const indicator = document.getElementById('speechStatusIndicator');
       if (indicator) indicator.style.display = 'none';
       try {
@@ -826,20 +841,6 @@ class VoiceRecognitionManager {
         if (this.speechManager && (this.speechManager.isSpeaking || Date.now() < this.speechManager.echoDecayUntil)) {
           console.log(`[Echo Cancellation] Ignored speaker output: "${transcript}"`);
           return;
-        }
-
-        // Drop transcript if it matches or contains words from what was just read by the assistant
-        if (this.speechManager && this.speechManager.currentSpokenText) {
-          const cleanT = transcript.toLowerCase();
-          if (
-            cleanT.length > 3 &&
-            (this.speechManager.currentSpokenText.includes(cleanT) ||
-             (cleanT.startsWith('step ') && this.speechManager.currentSpokenText.startsWith('step ')) ||
-             (cleanT.includes('timer') && this.speechManager.currentSpokenText.includes('timer')))
-          ) {
-            console.log(`[Echo Cancellation] Ignored self-echo of step instruction: "${transcript}"`);
-            return;
-          }
         }
 
         // 3. COMMAND DEBOUNCE: Prevent rapid multi-firing
@@ -1635,6 +1636,24 @@ class RecipeApp {
             intent.payload.durationSeconds,
             intent.payload.timerLabel || 'Timer'
           );
+        } else {
+          // Contextual step timer: "set the timer", "start timer" without explicit seconds
+          let startedStepTimer = false;
+          if (this.recipe && this.recipe.steps && this.currentStepIndex >= 0 && this.recipe.steps[this.currentStepIndex]) {
+            const currentStep = this.recipe.steps[this.currentStepIndex];
+            const detected = extractStepTimers(currentStep.instruction);
+            if (detected.length > 0) {
+              this.timerManager?.createTimer(
+                detected[0].durationSeconds,
+                `Step ${currentStep.id} (${detected[0].label})`,
+                currentStep.id
+              );
+              startedStepTimer = true;
+            }
+          }
+          if (!startedStepTimer) {
+            this.speech.speak('How long should I set the timer for? Please specify a duration, like 10 minutes.');
+          }
         }
         break;
       case 'CHECK_TIMER':

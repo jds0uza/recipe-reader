@@ -83,6 +83,23 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(t6.payload?.durationSeconds, 480);
     assert.equal(t6.payload?.timerLabel, 'pasta');
 
+    const t7 = parseVoiceCommand('set a 2 minute timer');
+    assert.equal(t7.action, 'SET_TIMER');
+    assert.equal(t7.payload?.durationSeconds, 120);
+    assert.equal(t7.payload?.timerLabel, 'Timer');
+
+    const t8 = parseVoiceCommand('set the timer');
+    assert.equal(t8.action, 'SET_TIMER');
+    assert.equal(t8.payload?.durationSeconds, null);
+
+    const t9 = parseVoiceCommand('start timer');
+    assert.equal(t9.action, 'SET_TIMER');
+    assert.equal(t9.payload?.durationSeconds, null);
+
+    const t10 = parseVoiceCommand('start the timer');
+    assert.equal(t10.action, 'SET_TIMER');
+    assert.equal(t10.payload?.durationSeconds, null);
+
     // Check timer
     assert.equal(parseVoiceCommand('check timer').action, 'CHECK_TIMER');
     assert.equal(parseVoiceCommand('how much time is left?').action, 'CHECK_TIMER');
