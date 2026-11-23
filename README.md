@@ -21,35 +21,46 @@ Kitchen environments present unique challenges for conversational voice assistan
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
+
+SousChef is organized into three clean layers designed for deterministic, hands-free kitchen interaction:
 
 ```mermaid
 flowchart TD
-    subgraph UI_Layer ["Voice & UI Layer"]
-        User(["Chef (Voice / Touch)"])
-        STT["STT Provider\n(Browser SpeechRecognition)"]
-        TTS["TTS Provider\n(Browser SpeechSynthesis / ElevenLabs)"]
-        AudioFX["Web Audio Synthesizer\n(Zero-Asset Chimes & Cues)"]
+    subgraph UI_Layer ["1. Audio & Interaction Layer"]
+        Chef(["👨‍🍳 Cook (Voice or Touch)"])
+        STT["Microphone Listener\n(Speech-to-Text)"]
+        TTS["Voice Narrator\n(Text-to-Speech / ElevenLabs)"]
+        AudioFX["Web Audio Synthesizer\n(Zero-Asset Chimes & Alarms)"]
     end
 
-    subgraph Parser_Layer ["Language & Ingestion"]
-        VCP["Voice Command Parser\n(Intent & Entity Extraction)"]
-        URLP["Recipe & JSON-LD Parser\n(Schema.org Extraction)"]
+    subgraph Parser_Layer ["2. Intent & Ingestion Layer"]
+        CommandParser["Voice Command Parser\n(Imperative Intent Extraction)"]
+        RecipeParser["Recipe & Web Extractor\n(Schema.org JSON-LD / HTML)"]
     end
 
-    subgraph Core_Engine ["Deterministic State Engine"]
-        SM["RecipeStateMachine\n(next_step, repeat_step, jump_to_step)"]
-        IngQ["Ingredient Lookup\n(Voice Phonetic Readout)"]
+    subgraph Core_Engine ["3. Deterministic State Engine"]
+        StateMachine["Recipe State Machine\n(Step Tracking, Progression, Bounds)"]
+        TimerManager["Concurrent Timer Manager\n(Active Countdowns & Web Audio Alarms)"]
+        IngredientEngine["Ingredient Lookup & Scaler\n(Fraction Math & Spoken Readouts)"]
     end
 
-    User -->|Voice| STT
-    User -->|Touch| SM
-    STT --> VCP
-    VCP -->|Action Intent| SM
-    URLP -->|Parsed Recipe| SM
-    SM <--> IngQ
-    SM -->|Step Speech & Audio Events| TTS
+    Chef -->|Speaks Command| STT
+    Chef -->|Touches Screen| StateMachine
+    STT -->|Raw Spoken Transcript| CommandParser
+    CommandParser -->|Structured Intent| StateMachine
+    CommandParser -->|Timer Intent| TimerManager
+    RecipeParser -->|Parsed Recipe Data| StateMachine
+    StateMachine <--> IngredientEngine
+    StateMachine -->|Current Step Narration| TTS
+    TimerManager -->|Alarm Trigger| AudioFX
+    TimerManager -->|Voice Alerts| TTS
 ```
+
+### Data Flow
+1. **Audio & Interaction Layer:** Captures audio through the browser's microphone and plays back spoken instructions and Web Audio harmonic chimes without external audio assets.
+2. **Intent & Ingestion Layer:** Ingests recipes from any website supporting Schema.org/Recipe structured data, and classifies spoken user commands using deterministic, noise-resilient natural language matching.
+3. **Deterministic State Engine:** Manages recipe step progression, concurrent cooking timers, and ingredient scaling with strict transition bounds so the assistant never skips steps or hallucinates.
 
 ### State Machine Lifecycle
 
