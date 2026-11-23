@@ -844,9 +844,11 @@ class VoiceSettingsModalManager {
     this.apiKeyInput = document.getElementById('inputElevenApiKey');
     this.voiceSelect = document.getElementById('selectElevenVoice');
     this.toggleVisBtn = document.getElementById('btnToggleApiKeyVis');
+    this.fetchBtn = document.getElementById('btnFetchVoices');
     this.statusTitle = document.getElementById('modalVoiceStatusTitle');
     this.statusSub = document.getElementById('modalVoiceStatusSub');
     this.modalDot = document.getElementById('modalVoiceDot');
+    this.statusCard = document.getElementById('voiceStatusCard');
     this.headerDot = document.getElementById('headerVoiceDot');
     this.headerLabel = document.getElementById('voiceProviderLabel');
 
@@ -882,11 +884,96 @@ class VoiceSettingsModalManager {
       });
     }
 
+    if (this.fetchBtn) {
+      this.fetchBtn.addEventListener('click', () => {
+        const key = (this.apiKeyInput?.value || '').trim();
+        if (key) this.fetchAccountVoices(key);
+      });
+    }
+
+    if (this.apiKeyInput) {
+      this.apiKeyInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const key = (this.apiKeyInput?.value || '').trim();
+          if (key) this.fetchAccountVoices(key);
+        }
+      });
+    }
+
     if (saveBtn) saveBtn.addEventListener('click', () => this.save());
     if (clearBtn) clearBtn.addEventListener('click', () => this.clear());
     if (testBtn) testBtn.addEventListener('click', () => this.testVoice());
 
     this.updateUi();
+
+    // Auto-load account voices on startup if key is already saved in localStorage
+    if (this.speech.isElevenLabsActive) {
+      this.fetchAccountVoices(this.speech.elevenKey);
+    }
+  }
+
+  async fetchAccountVoices(keyToUse) {
+    const key = (keyToUse || this.apiKeyInput?.value || this.speech.elevenKey || '').trim();
+    if (!key) return;
+
+    if (this.statusTitle) this.statusTitle.textContent = 'Connecting to ElevenLabs...';
+    if (this.statusSub) this.statusSub.textContent = 'Verifying API key & loading your account voices...';
+    if (this.fetchBtn) {
+      this.fetchBtn.disabled = true;
+      this.fetchBtn.textContent = 'Checking...';
+    }
+
+    try {
+      const res = await fetch('https://api.elevenlabs.io/v1/voices', {
+        headers: { 'xi-api-key': key }
+      });
+
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData.detail?.message) errMsg = errData.detail.message;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      const data = await res.json();
+      const voices = data.voices || [];
+
+      if (voices.length > 0 && this.voiceSelect) {
+        const currentSelected = this.voiceSelect.value || this.speech.elevenVoiceId;
+        this.voiceSelect.innerHTML = voices.map(v => {
+          const cat = v.category ? ` (${v.category})` : '';
+          return `<option value="${v.voice_id}">${v.name}${cat}</option>`;
+        }).join('');
+
+        if (voices.some(v => v.voice_id === currentSelected)) {
+          this.voiceSelect.value = currentSelected;
+        } else {
+          this.voiceSelect.value = voices[0].voice_id;
+        }
+      }
+
+      const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Selected Voice';
+      if (this.statusTitle) this.statusTitle.textContent = 'ElevenLabs Connected!';
+      if (this.statusSub) this.statusSub.textContent = `Loaded ${voices.length} voices from your account. Active: ${voiceName}`;
+      if (this.modalDot) this.modalDot.className = 'voice-status-dot active-eleven';
+      if (this.statusCard) this.statusCard.classList.remove('error');
+      return true;
+    } catch (err) {
+      console.warn('ElevenLabs voice fetch failed:', err);
+      if (this.statusTitle) this.statusTitle.textContent = 'API Key Rejected';
+      if (this.statusSub) this.statusSub.textContent = `${err.message}. Please check your key at elevenlabs.io`;
+      if (this.modalDot) this.modalDot.className = 'voice-status-dot has-error';
+      if (this.statusCard) this.statusCard.classList.add('error');
+      return false;
+    } finally {
+      if (this.fetchBtn) {
+        this.fetchBtn.disabled = false;
+        this.fetchBtn.textContent = 'Connect';
+      }
+    }
   }
 
   open() {
@@ -897,6 +984,10 @@ class VoiceSettingsModalManager {
     this.updateUi();
     this.modal.classList.remove('hidden');
     if (this.apiKeyInput) this.apiKeyInput.focus();
+
+    if (this.speech.isElevenLabsActive) {
+      this.fetchAccountVoices(this.speech.elevenKey);
+    }
   }
 
   close() {
@@ -904,11 +995,17 @@ class VoiceSettingsModalManager {
     this.modal.classList.add('hidden');
   }
 
-  save() {
+  async save() {
     const key = (this.apiKeyInput?.value || '').trim();
     const voiceId = this.voiceSelect?.value || '21m00Tcm4TlvDq8ikWAM';
 
     if (key) {
+      // Validate key and fetch voices if needed
+      const isValid = await this.fetchAccountVoices(key);
+      if (isValid === false) {
+        // Keep modal open so user sees the rejection message
+        return;
+      }
       localStorage.setItem('souschef_eleven_key', key);
       localStorage.setItem('souschef_eleven_voice', voiceId);
     } else {
@@ -921,7 +1018,7 @@ class VoiceSettingsModalManager {
     this.close();
 
     if (this.speech.isElevenLabsActive) {
-      const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Rachel';
+      const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'ElevenLabs';
       this.app?.recordAudit(`🎙️ Activated ElevenLabs voice: ${voiceName}`);
       this.speech.speak(`Voice settings updated. Now cooking with ElevenLabs ${voiceName}.`);
     } else {
@@ -934,15 +1031,52 @@ class VoiceSettingsModalManager {
     if (this.apiKeyInput) this.apiKeyInput.value = '';
     this.speech.loadSettings();
     this.updateUi();
+    if (this.statusCard) this.statusCard.classList.remove('error');
     this.app?.recordAudit('🗑️ ElevenLabs API key removed. Using browser offline voice.');
   }
 
-  testVoice() {
+  async testVoice() {
+    const testBtn = document.getElementById('btnTestVoice');
+    if (testBtn) {
+      testBtn.disabled = true;
+      testBtn.textContent = '⏳ Speaking...';
+    }
+
+    const key = (this.apiKeyInput?.value || this.speech.elevenKey || '').trim();
+    const voiceId = this.voiceSelect?.value || this.speech.elevenVoiceId;
     const voiceName = this.voiceSelect?.options[this.voiceSelect.selectedIndex]?.text?.split('(')[0]?.trim() || 'Rachel';
-    const sampleText = this.speech.isElevenLabsActive
-      ? `Hi there! I'm ${voiceName} from ElevenLabs. I'm ready to guide your cooking hands-free.`
-      : `Hello! I'm your cooking assistant, running offline with your browser's built-in voice.`;
-    this.speech.speak(sampleText);
+
+    if (key) {
+      try {
+        if (this.statusTitle) this.statusTitle.textContent = `Testing ElevenLabs (${voiceName})...`;
+        if (this.statusSub) this.statusSub.textContent = 'Streaming audio from ElevenLabs API...';
+
+        // Update active voice ID temporarily for test
+        this.speech.elevenKey = key;
+        this.speech.elevenVoiceId = voiceId;
+
+        await this.speech.speakElevenLabs(`Hi there! I am ${voiceName} from ElevenLabs. I am ready to guide your cooking hands-free.`);
+
+        if (this.statusTitle) this.statusTitle.textContent = 'ElevenLabs Audio Working!';
+        if (this.statusSub) this.statusSub.textContent = `Successfully played audio using ${voiceName}.`;
+        if (this.modalDot) this.modalDot.className = 'voice-status-dot active-eleven';
+        if (this.statusCard) this.statusCard.classList.remove('error');
+      } catch (err) {
+        console.error('Test voice error:', err);
+        if (this.statusTitle) this.statusTitle.textContent = 'ElevenLabs Playback Failed';
+        if (this.statusSub) this.statusSub.textContent = `${err.message}. Falling back to browser voice.`;
+        if (this.modalDot) this.modalDot.className = 'voice-status-dot has-error';
+        if (this.statusCard) this.statusCard.classList.add('error');
+        this.speech.speakBrowser(`ElevenLabs failed to connect. Falling back to browser speech.`);
+      }
+    } else {
+      this.speech.speakBrowser(`Hello! I'm your cooking assistant, running offline with your browser's built-in voice.`);
+    }
+
+    if (testBtn) {
+      testBtn.disabled = false;
+      testBtn.textContent = '🔊 Test Voice';
+    }
   }
 
   updateUi() {
