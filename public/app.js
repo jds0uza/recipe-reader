@@ -228,6 +228,357 @@ function expandTextForSpeech(text) {
   return result;
 }
 
+// --- Client-Side Recipe Parser (Enables direct parsing on static GitHub Pages) ---
+const COMMON_UNITS = [
+  'tablespoon', 'tablespoons', 'tbsp', 'tbs', 'tb',
+  'teaspoon', 'teaspoons', 'tsp', 'ts',
+  'cup', 'cups', 'c',
+  'ounce', 'ounces', 'oz',
+  'fluid ounce', 'fluid ounces', 'fl oz',
+  'pound', 'pounds', 'lb', 'lbs',
+  'gram', 'grams', 'g',
+  'kilogram', 'kilograms', 'kg',
+  'milliliter', 'milliliters', 'ml',
+  'liter', 'liters', 'l',
+  'pinch', 'pinches',
+  'dash', 'dashes',
+  'clove', 'cloves',
+  'slice', 'slices',
+  'piece', 'pieces',
+  'sprig', 'sprigs',
+  'stalk', 'stalks',
+  'can', 'cans',
+  'package', 'packages', 'pkg',
+  'bunch', 'bunches',
+  'head', 'heads'
+];
+
+function parseQuantity(str) {
+  if (!str) return null;
+  const trimmed = str.trim();
+  if (!trimmed) return null;
+
+  if (UNICODE_FRACTIONS[trimmed] !== undefined) {
+    return UNICODE_FRACTIONS[trimmed];
+  }
+
+  let normalized = trimmed;
+  for (const [char, val] of Object.entries(UNICODE_FRACTIONS)) {
+    if (normalized.includes(char)) {
+      normalized = normalized.replace(new RegExp(char, 'g'), ` ${val}`);
+    }
+  }
+
+  const parts = normalized.trim().split(/\s+/);
+  if (parts.length === 2) {
+    const whole = parseFloat(parts[0]);
+    const frac = parseQuantity(parts[1]);
+    if (!isNaN(whole) && frac !== null) {
+      return whole + frac;
+    }
+  }
+
+  if (trimmed.includes('/')) {
+    const [num, denom] = trimmed.split('/').map(s => parseFloat(s.trim()));
+    if (!isNaN(num) && !isNaN(denom) && denom !== 0) {
+      return num / denom;
+    }
+  }
+
+  const parsed = parseFloat(trimmed);
+  return isNaN(parsed) ? null : parsed;
+}
+
+function stripOuterParens(text) {
+  let s = text.trim();
+  let changed = true;
+  while (changed && s.startsWith('(') && s.endsWith(')')) {
+    let depth = 0;
+    let matchedEnd = false;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '(') depth++;
+      else if (s[i] === ')') {
+        depth--;
+        if (depth === 0) {
+          if (i === s.length - 1) matchedEnd = true;
+          break;
+        }
+      }
+    }
+    if (matchedEnd) {
+      s = s.slice(1, -1).trim();
+    } else {
+      changed = false;
+    }
+  }
+  return s;
+}
+
+function cleanIngredientNotes(notes) {
+  if (!notes) return undefined;
+  let s = stripOuterParens(notes);
+  s = s.replace(/^[,;:\-\s]+/, '').trim();
+  s = stripOuterParens(s);
+  return s || undefined;
+}
+
+function extractTrailingParenthetical(str) {
+  const s = str.trim();
+  if (!s.endsWith(')')) return null;
+
+  let depth = 0;
+  for (let i = s.length - 1; i >= 0; i--) {
+    if (s[i] === ')') depth++;
+    else if (s[i] === '(') {
+      depth--;
+      if (depth === 0) {
+        let startIdx = i;
+        while (startIdx > 0 && (s[startIdx - 1] === '(' || (s[startIdx - 1] === ' ' && startIdx > 1 && s[startIdx - 2] === '('))) {
+          startIdx--;
+        }
+        return {
+          name: s.slice(0, startIdx).trim(),
+          notes: s.slice(startIdx).trim()
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function parseIngredient(rawText, id = `ing-${Math.random().toString(36).substr(2, 9)}`) {
+  const clean = cleanText(rawText);
+  if (!clean) {
+    return { id, raw: rawText, name: rawText, quantity: null, unit: null };
+  }
+
+  const dualMeasureRegex = /^(\d+(?:\.\d+)?|\d+\/\d+|\d+\s+\d+\/\d+)\s*([a-z]+)\s*\/\s*(\d+(?:\.\d+)?|\d+\/\d+|\d+\s+\d+\/\d+)\s*([a-z]+)\s+(.*)/i;
+  const dualMatch = clean.match(dualMeasureRegex);
+
+  let quantity = null;
+  let unit = null;
+  let remaining = clean;
+
+  if (dualMatch) {
+    quantity = parseQuantity(dualMatch[1]);
+    const unit1 = dualMatch[2].toLowerCase();
+    const unit2 = dualMatch[4].toLowerCase();
+    unit = `${unit1} / ${dualMatch[3]} ${unit2}`;
+    remaining = dualMatch[5].trim();
+  } else {
+    const rangeRegex = /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*[-–—]\s*((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*/i;
+    const rangeMatch = remaining.match(rangeRegex);
+
+    if (rangeMatch) {
+      quantity = parseQuantity(rangeMatch[2]);
+      remaining = remaining.slice(rangeMatch[0].length).trim();
+    } else {
+      const qtyRegex = /^((?:\d+\s+)?\d+\/\d+|\d+(?:\.\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*/i;
+      const qtyMatch = remaining.match(qtyRegex);
+
+      if (qtyMatch) {
+        quantity = parseQuantity(qtyMatch[1].trim());
+        remaining = remaining.slice(qtyMatch[0].length).trim();
+      }
+    }
+
+    const unitMatch = remaining.match(/^([a-z]+(?:\s+[a-z]+)?)\b/i);
+    if (unitMatch) {
+      const candidateUnit = unitMatch[1].toLowerCase();
+      const matched = COMMON_UNITS.find(u => u === candidateUnit || candidateUnit.startsWith(u + ' '));
+      if (matched) {
+        unit = matched;
+        remaining = remaining.slice(unit.length).trim();
+        if (remaining.toLowerCase().startsWith('of ')) {
+          remaining = remaining.slice(3).trim();
+        }
+      }
+    }
+  }
+
+  let candidateName = remaining;
+  let notes;
+
+  const trailingParen = extractTrailingParenthetical(remaining);
+  if (trailingParen) {
+    candidateName = trailingParen.name;
+    notes = cleanIngredientNotes(trailingParen.notes);
+  } else if (remaining.includes(',')) {
+    let commaIdx = -1;
+    let depth = 0;
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i] === '(') depth++;
+      else if (remaining[i] === ')') depth = Math.max(0, depth - 1);
+      else if (remaining[i] === ',' && depth === 0) {
+        commaIdx = i;
+        break;
+      }
+    }
+    if (commaIdx !== -1) {
+      candidateName = remaining.slice(0, commaIdx).trim();
+      notes = cleanIngredientNotes(remaining.slice(commaIdx + 1).trim());
+    }
+  }
+
+  return {
+    id,
+    raw: rawText,
+    name: candidateName || rawText,
+    quantity,
+    unit,
+    notes
+  };
+}
+
+function parseIsoDuration(durationStr) {
+  if (!durationStr || typeof durationStr !== 'string') return undefined;
+  const match = durationStr.match(/P(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?/i);
+  if (!match) return undefined;
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  return hours * 60 + minutes;
+}
+
+function parseRecipeServings(yieldVal) {
+  if (typeof yieldVal === 'number' && yieldVal > 0) return yieldVal;
+  if (Array.isArray(yieldVal) && yieldVal.length > 0) return parseRecipeServings(yieldVal[0]);
+  if (typeof yieldVal === 'string') {
+    const match = yieldVal.match(/\d+/);
+    if (match) {
+      const parsed = parseInt(match[0], 10);
+      if (parsed > 0) return parsed;
+    }
+  }
+  return 4;
+}
+
+function formatGroupTitle(raw) {
+  if (!raw) return '';
+  let clean = raw
+    .replace(/<[^>]+>/g, '')
+    .replace(/[:\-\s]+$/, '')
+    .replace(/^[:#\-\s]+/, '')
+    .trim();
+  if (!clean) return '';
+  if (clean === clean.toUpperCase() && clean.length > 2) {
+    clean = clean.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+  return clean;
+}
+
+function isIngredientHeader(raw) {
+  const clean = (raw || '').trim();
+  if (!clean) return false;
+  if (/^#{1,4}\s+[^#\n]+$/i.test(clean)) return true;
+  if (/^={2,}\s*[^=\n]+\s*={2,}$/.test(clean)) return true;
+  if (/^\d/.test(clean)) return false;
+  if (/^(?:for\s+the\s+)?([a-z0-9\s/&'-]+):\s*$/i.test(clean)) return true;
+  return false;
+}
+
+function cleanRecipeDescription(text) {
+  if (!text) return '';
+  return cleanText(text)
+    .replace(/\b(?:watch|see)\s+(?:the\s+)?(?:recipe\s+)?video\s+(?:above|below|here)[^.]*\.?/gi, '')
+    .replace(/\b(?:jump|scroll)\s+to\s+(?:the\s+)?recipe[^.]*\.?/gi, '')
+    .replace(/\b(?:recipe\s+video\s+above)[^.]*\.?/gi, '')
+    .trim()
+    .replace(/\s{2,}/g, ' ');
+}
+
+function parseRecipeFromSchema(jsonLd, sourceUrl) {
+  let recipeObj = jsonLd;
+  if (recipeObj && recipeObj['@graph'] && Array.isArray(recipeObj['@graph'])) {
+    recipeObj = recipeObj['@graph'].find(
+      item => item['@type'] === 'Recipe' || (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
+    );
+  }
+  if (Array.isArray(recipeObj)) {
+    recipeObj = recipeObj.find(
+      item => item['@type'] === 'Recipe' || (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
+    );
+  }
+  if (!recipeObj) {
+    throw new Error('Valid Schema.org Recipe not found');
+  }
+
+  const title = cleanRecipeDescription(recipeObj.name || recipeObj.headline || 'Untitled Recipe');
+  const description = cleanRecipeDescription(recipeObj.description || '');
+  const servings = parseRecipeServings(recipeObj.recipeYield);
+
+  const rawIngredients = Array.isArray(recipeObj.recipeIngredient) ? recipeObj.recipeIngredient : [];
+  const ingredients = [];
+  let currentGroup;
+
+  for (let idx = 0; idx < rawIngredients.length; idx++) {
+    const raw = cleanText(String(rawIngredients[idx]));
+    if (!raw) continue;
+    if (isIngredientHeader(raw)) {
+      currentGroup = formatGroupTitle(raw);
+      continue;
+    }
+    const ing = parseIngredient(raw, `ing-${ingredients.length + 1}`);
+    if (currentGroup) ing.group = currentGroup;
+    ingredients.push(ing);
+  }
+
+  const rawInstructions = recipeObj.recipeInstructions || [];
+  const steps = [];
+  const processItem = item => {
+    if (typeof item === 'string') {
+      const text = cleanText(item);
+      if (text) steps.push({ id: steps.length + 1, instruction: text });
+    } else if (item && typeof item === 'object') {
+      if (item['@type'] === 'HowToStep' || item.text) {
+        const text = cleanText(item.text || item.description || '');
+        if (text) steps.push({ id: steps.length + 1, instruction: text });
+      } else if (item['@type'] === 'HowToSection' && Array.isArray(item.itemListElement)) {
+        item.itemListElement.forEach(processItem);
+      }
+    }
+  };
+
+  if (Array.isArray(rawInstructions)) {
+    rawInstructions.forEach(processItem);
+  } else if (typeof rawInstructions === 'string') {
+    rawInstructions
+      .split(/\n+/)
+      .map(s => cleanText(s.replace(/^\d+[\.\)]\s*/, '')))
+      .filter(Boolean)
+      .forEach(text => {
+        steps.push({ id: steps.length + 1, instruction: text });
+      });
+  }
+
+  return {
+    id: `recipe-${Date.now()}`,
+    title,
+    description,
+    url: sourceUrl || recipeObj.url,
+    originalServings: servings,
+    currentServings: servings,
+    scaleFactor: 1.0,
+    ingredients,
+    steps,
+    prepTimeMinutes: parseIsoDuration(recipeObj.prepTime),
+    cookTimeMinutes: parseIsoDuration(recipeObj.cookTime),
+    totalTimeMinutes: parseIsoDuration(recipeObj.totalTime),
+    source: recipeObj.publisher?.name || 'Recipe Reader'
+  };
+}
+
+function extractRecipeFromHtml(html, sourceUrl) {
+  const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match;
+  while ((match = jsonLdRegex.exec(html)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      return parseRecipeFromSchema(parsed, sourceUrl);
+    } catch {}
+  }
+  throw new Error('No schema.org/Recipe JSON-LD script found in HTML');
+}
+
 function formatIngredientForVoice(ingredient, scaleFactor = 1.0) {
   if (ingredient.quantity === null) {
     return ingredient.name + (ingredient.notes ? `, ${ingredient.notes}` : '');
@@ -2446,23 +2797,106 @@ class RecipeApp {
     }
   }
 
-  async fetchRecipeFromUrl(url) {
-    try {
-      this.recordAudit(`Fetching recipe from URL: ${url}`);
-      const res = await fetch('/api/parse-recipe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (data.success && data.recipe) {
-        this.loadRecipe(data.recipe);
-      } else {
-        alert(data.error || 'Failed to extract recipe from URL.');
+  async fetchRecipeFromUrl(rawUrl) {
+    const input = (rawUrl || '').trim();
+    if (!input) return;
+
+    // 1. Instant offline sample keyword detection
+    const lower = input.toLowerCase();
+    if (lower.includes('cookie') || lower === 'cookies') {
+      this.recordAudit('Loading built-in sample: Chocolate Chip Cookies');
+      this.loadSampleRecipe('cookies');
+      return;
+    }
+    if (lower.includes('chicken') || lower.includes('tuscan')) {
+      this.recordAudit('Loading built-in sample: Tuscan Garlic Chicken');
+      this.loadSampleRecipe('chicken');
+      return;
+    }
+    if (lower.includes('pancake') || lower.includes('blueberry') || lower === 'pancakes') {
+      this.recordAudit('Loading built-in sample: Blueberry Pancakes');
+      this.loadSampleRecipe('pancakes');
+      return;
+    }
+
+    // 2. Direct JSON-LD or HTML markup pasted in
+    if (input.startsWith('{') || input.includes('"@type"') || input.includes('<script') || input.includes('<html')) {
+      try {
+        this.recordAudit('Parsing pasted recipe markup...');
+        let recipe;
+        if (input.startsWith('{')) {
+          recipe = parseRecipeFromSchema(JSON.parse(input), 'Pasted Recipe');
+        } else {
+          recipe = extractRecipeFromHtml(input, 'Pasted HTML');
+        }
+        if (recipe && recipe.steps.length > 0) {
+          this.loadRecipe(recipe);
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct markup parse failed:', err);
       }
-    } catch (e) {
-      console.error(e);
-      alert('Could not connect to recipe extraction server. Ensure `npm start` is running.');
+    }
+
+    this.recordAudit(`Fetching recipe: ${input}`);
+
+    // 3. Localhost Node server backend (if running npm start locally)
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost) {
+      try {
+        const res = await fetch('/api/parse-recipe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: input })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.recipe) {
+            this.loadRecipe(data.recipe);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Local API fetch failed, trying client-side fallback:', e);
+      }
+    }
+
+    // 4. Client-side extraction via CORS proxies (for GitHub Pages & static hosting)
+    const proxyGateways = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(input)}`,
+      `https://corsproxy.io/?url=${encodeURIComponent(input)}`
+    ];
+
+    for (const proxyUrl of proxyGateways) {
+      try {
+        this.recordAudit('Fetching via CORS proxy...');
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+          const html = await response.text();
+          const recipe = extractRecipeFromHtml(html, input);
+          if (recipe && recipe.steps.length > 0) {
+            this.recordAudit(`Extracted: ${recipe.title}`);
+            this.loadRecipe(recipe);
+            return;
+          }
+        }
+      } catch (proxyErr) {
+        console.warn(`Proxy ${proxyUrl} failed:`, proxyErr);
+      }
+    }
+
+    // 5. Friendly GitHub Pages static hosting explanation
+    const isGitHubPages = window.location.hostname.endsWith('github.io');
+    if (isGitHubPages || !isLocalhost) {
+      alert(
+        'GitHub Pages is a static host, and this external website blocked third-party scrapers (CORS).\n\n' +
+        'Tips to continue:\n' +
+        '• Choose a recipe from the "Or start with a sample" dropdown below.\n' +
+        '• Or paste the recipe\'s text or JSON-LD into the box.\n' +
+        '• Or run `npm start` locally for full server-side scraping.'
+      );
+    } else {
+      alert('Could not extract recipe from this URL. Please verify the URL or try another recipe.');
     }
   }
 
