@@ -1833,9 +1833,9 @@ class RecipeApp {
         const detected = extractStepTimers(currentStep.instruction);
         if (detected.length > 0) {
           timerChipsContainer.innerHTML = detected.map(d => `
-            <button class="btn-step-timer" data-seconds="${d.durationSeconds}" data-label="Step ${currentStep.id} (${d.label})">
+            <button class="btn-step-timer" data-seconds="${d.durationSeconds}" data-label="Step ${currentStep.id} (${d.label})" title="Start a ${d.label} timer for Step ${currentStep.id}">
               <svg><use href="#icon-timer"></use></svg>
-              <span>Start ${d.label} timer</span>
+              <span>${d.label} timer</span>
             </button>
           `).join('');
           timerChipsContainer.querySelectorAll('.btn-step-timer').forEach(b => {
