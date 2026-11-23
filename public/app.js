@@ -561,17 +561,33 @@ function parseVoiceCommand(text) {
     return { action: 'CHECK_TIMER', rawTranscript: text };
   }
 
-  // Set Timer: "set a timer for 10 minutes", "set 5 minute timer", "pasta timer 8 minutes"
-  if (/\btimer\b/i.test(clean)) {
+  // Set Timer: requires explicit imperative command (e.g. "set a timer for 10 minutes", "start 5 minute timer", "pasta timer 8 minutes")
+  // Must NOT trigger on descriptive utterances like "starting a 10 minute timer", "Step 3 bake for 10 minutes", or "timer is done"
+  const isExcludedTimerPhrase =
+    /^(?:starting|your|the)\b/i.test(clean) ||
+    /\b(?:done|completed|finished|cancelled|canceled|started|remaining)\b/i.test(clean) ||
+    /^step\s+\d+/i.test(clean);
+
+  const isSetTimerCommand =
+    !isExcludedTimerPhrase &&
+    (/^(?:please\s+)?(?:set|start|create|begin|new)\s+(?:a\s+)?(?:([a-z0-9\s]+?)\s+)?timer\b/i.test(clean) ||
+     /^(?:please\s+)?(?:set|start)\s+(?:a\s+)?(.+?)\s+timer$/i.test(clean) ||
+     /^(?:please\s+)?(?:([a-z0-9\s]+?)\s+)?timer\s+(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)/i.test(clean));
+
+  if (isSetTimerCommand) {
     const durationSeconds = parseDurationSeconds(clean);
     if (durationSeconds && durationSeconds > 0) {
       let timerLabel = 'Timer';
       const labelMatch = clean.match(/(?:set|start|create)\s+(?:a\s+)?([a-z0-9\s]+?)\s+timer/i);
       const labelAfterMatch = clean.match(/timer\s+for\s+([a-z]+)\s+for/i);
+      const prefixLabelMatch = clean.match(/^([a-z]+)\s+timer/i);
+
       if (labelAfterMatch && labelAfterMatch[1]) {
         timerLabel = labelAfterMatch[1].trim();
       } else if (labelMatch && !['kitchen', 'cooking', 'new', 'quick', ''].includes(labelMatch[1].trim())) {
         timerLabel = labelMatch[1].trim();
+      } else if (prefixLabelMatch && !['kitchen', 'cooking', 'new', 'quick', 'a', 'the', ''].includes(prefixLabelMatch[1].trim())) {
+        timerLabel = prefixLabelMatch[1].trim();
       }
       return {
         action: 'SET_TIMER',
@@ -818,7 +834,8 @@ class VoiceRecognitionManager {
           if (
             cleanT.length > 3 &&
             (this.speechManager.currentSpokenText.includes(cleanT) ||
-             (cleanT.startsWith('step ') && this.speechManager.currentSpokenText.startsWith('step ')))
+             (cleanT.startsWith('step ') && this.speechManager.currentSpokenText.startsWith('step ')) ||
+             (cleanT.includes('timer') && this.speechManager.currentSpokenText.includes('timer')))
           ) {
             console.log(`[Echo Cancellation] Ignored self-echo of step instruction: "${transcript}"`);
             return;
@@ -1025,8 +1042,18 @@ class KitchenTimerManager {
 
   createTimer(durationSeconds, label = 'Timer', stepId = null) {
     if (!durationSeconds || durationSeconds <= 0) return null;
-    const id = 'timer_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+    // Deduplication guard: ignore duplicate timer creation within 3 seconds
     const now = Date.now();
+    if (this.lastCreatedTime && (now - this.lastCreatedTime < 3000) && this.lastCreatedDuration === durationSeconds && this.lastCreatedStepId === stepId) {
+      console.log('[Timer Guard] Ignored duplicate timer creation within 3 seconds.');
+      return null;
+    }
+    this.lastCreatedTime = now;
+    this.lastCreatedDuration = durationSeconds;
+    this.lastCreatedStepId = stepId;
+
+    const id = 'timer_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const timer = {
       id,
       label,
@@ -1042,8 +1069,9 @@ class KitchenTimerManager {
     this.render();
 
     const readable = this.formatDurationReadable(durationSeconds);
-    const spokenLabel = label && label !== 'Timer' ? `${label} timer` : 'timer';
-    this.app.speech.speak(`Starting a ${readable} ${spokenLabel}.`);
+    const isStepTimer = label && label.toLowerCase().startsWith('step ');
+    const cleanSpokenName = (label && label !== 'Timer' && !isStepTimer) ? `${label} ` : '';
+    this.app.speech.speak(`${readable} ${cleanSpokenName}timer started.`);
     this.app.recordAudit(`⏱️ Timer started: "${label}" (${readable})`);
     return timer;
   }

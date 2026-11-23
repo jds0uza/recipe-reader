@@ -93,6 +93,13 @@ test('Voice Command Parser - Intent Classification', async (t) => {
     assert.equal(parseVoiceCommand('cancel timer').action, 'CANCEL_TIMER');
     assert.equal(parseVoiceCommand('stop timer').action, 'CANCEL_TIMER');
     assert.equal(parseVoiceCommand('clear timer').action, 'CANCEL_TIMER');
+
+    // Assistant TTS announcements and step text must NOT trigger timer creation
+    assert.notEqual(parseVoiceCommand('Starting a 10 minutes Step 3 timer.').action, 'SET_TIMER');
+    assert.notEqual(parseVoiceCommand('10 minute timer started.').action, 'SET_TIMER');
+    assert.notEqual(parseVoiceCommand('Ding! Your 10 minute timer is done!').action, 'SET_TIMER');
+    assert.notEqual(parseVoiceCommand('Step 3: Bake in preheated oven for 10 minutes.').action, 'SET_TIMER');
+    assert.notEqual(parseVoiceCommand('Your pasta timer is done').action, 'SET_TIMER');
   });
 
   await t.test('classifies STOP and interrupt intents', () => {

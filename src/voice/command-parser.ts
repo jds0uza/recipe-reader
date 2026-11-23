@@ -128,17 +128,33 @@ export function parseVoiceCommand(rawTranscript: string): VoiceCommandIntent {
     return { action: 'CHECK_TIMER', rawTranscript };
   }
 
-  // Set Timer: "set a timer for 10 minutes", "set 5 minute timer", "pasta timer 8 minutes"
-  if (/\btimer\b/i.test(text)) {
+  // Set Timer: requires explicit imperative command (e.g. "set a timer for 10 minutes", "start 5 minute timer", "pasta timer 8 minutes")
+  // Must NOT trigger on descriptive utterances like "starting a 10 minute timer", "Step 3 bake for 10 minutes", or "timer is done"
+  const isExcludedTimerPhrase =
+    /^(?:starting|your|the)\b/i.test(text) ||
+    /\b(?:done|completed|finished|cancelled|canceled|started|remaining)\b/i.test(text) ||
+    /^step\s+\d+/i.test(text);
+
+  const isSetTimerCommand =
+    !isExcludedTimerPhrase &&
+    (/^(?:please\s+)?(?:set|start|create|begin|new)\s+(?:a\s+)?(?:([a-z0-9\s]+?)\s+)?timer\b/i.test(text) ||
+     /^(?:please\s+)?(?:set|start)\s+(?:a\s+)?(.+?)\s+timer$/i.test(text) ||
+     /^(?:please\s+)?(?:([a-z0-9\s]+?)\s+)?timer\s+(?:for\s+)?(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|half|quarter)/i.test(text));
+
+  if (isSetTimerCommand) {
     const durationSeconds = parseDurationSeconds(text);
     if (durationSeconds && durationSeconds > 0) {
       let timerLabel = 'Timer';
       const labelMatch = text.match(/(?:set|start|create)\s+(?:a\s+)?([a-z0-9\s]+?)\s+timer/i);
       const labelAfterMatch = text.match(/timer\s+for\s+([a-z]+)\s+for/i);
+      const prefixLabelMatch = text.match(/^([a-z]+)\s+timer/i);
+
       if (labelAfterMatch && labelAfterMatch[1]) {
         timerLabel = labelAfterMatch[1].trim();
       } else if (labelMatch && !['kitchen', 'cooking', 'new', 'quick', ''].includes(labelMatch[1].trim())) {
         timerLabel = labelMatch[1].trim();
+      } else if (prefixLabelMatch && !['kitchen', 'cooking', 'new', 'quick', 'a', 'the', ''].includes(prefixLabelMatch[1].trim())) {
+        timerLabel = prefixLabelMatch[1].trim();
       }
       return {
         action: 'SET_TIMER',
