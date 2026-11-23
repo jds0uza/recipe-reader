@@ -1,6 +1,6 @@
 # 👩‍🍳 SousChef: A Hands-Free Voice Interface for Kitchen Recipe Navigation
 
-<!-- TODO: Record a 20-second video demo (with ElevenLabs Rachel voice) and embed here for recruiters -->
+<!-- TODO: Record a 20-second video demo (with ElevenLabs Rachel voice) and embed here  -->
 
 When cooking, it's difficult to constantly tap a screen with messy hands or remember exact ingredient measurements. SousChef solves this with a voice interface for recipe navigation.
 
