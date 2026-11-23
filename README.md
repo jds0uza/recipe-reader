@@ -94,35 +94,22 @@ stateDiagram-v2
 
 ---
 
-## 🛡️ Production Voice Hardening & Memory Architecture
+## 🛡️ Edge-Case Voice Engineering
 
-Real-world hands-free kitchen voice interfaces present acute edge cases that simple prototypes overlook. SousChef solves four core voice lifecycle and stability challenges:
+Kitchen environments present unique full-duplex audio challenges. SousChef solves four core edge cases:
 
-### 1. Chromium Speech Recognition Memory Leak Mitigation
-- **The Issue:** In Chromium-based browsers, running `SpeechRecognition` in `continuous = true` mode over multi-hour sessions delegates audio streaming to Chrome's native `Utility: Speech Recognition Service`. Because browsers force-terminate recognition after periods of silence, naive implementations restart the session in an infinite loop (`onend -> start()`). Re-invoking `.start()` on the same dirty instance leaks C++ audio buffers in native memory, compounding to tens of gigabytes over 24+ hours.
-- **The Solution:** On each session restart, SousChef completely detaches native event handlers (`onresult`, `onend`, `onerror`), explicitly calls `.abort()`, nullifies the reference, and instantiates a clean `SpeechRecognition` object. This enables V8 and Chromium's IPC bridge to completely sweep prior audio buffers.
-
-### 2. Inactivity Watchdog (5-Minute Auto-Sleep)
-- **The Issue:** Kitchen devices are often left unattended for hours or days after cooking.
-- **The Solution:** A background inactivity watchdog monitors timestamps across voice commands, UI clicks, and keypresses. If no interaction occurs for **5 minutes**, the voice pipeline cleanly stops audio capture and enters low-power sleep mode (`💤 Mic auto-paused`), eliminating idle memory and battery drain.
-
-### 3. Background Tab Visibility Throttling
-- **The Issue:** Browsers keep recording audio even when the tab is hidden, wasting bandwidth and memory while surprising users.
-- **The Solution:** Hooks into `document.visibilitychange`. If the user minimizes Chrome, switches tabs, or locks their machine, audio capture immediately terminates and enters sleep until manually awakened.
-
-### 4. Barge-In Interrupts & Blended Audio Detection
-- **The Issue:** When an assistant reads steps through laptop speakers, the microphone captures a blended acoustic stream (e.g. speaker says *"degrees"* + user says *"stop"* $\rightarrow$ Chrome transcribes *"degrees stop"*). Strict regex matching (`^stop$`) fails, dropping the interrupt.
-- **The Solution:**
-  - Priority #1 routing: Evaluates `STOP` intent **before** echo-suppression filters.
-  - Word-boundary matching: Regex `\b(stop|pause|quiet|silence|halt)\b` catches interrupts even when surrounded by speaker bleed or conversational prefixes.
-  - Multi-alternative hypothesis scanning: Scans interim recognition alternatives so that if "stop" appears as a secondary hypothesis against loud speaker output, speech synthesis is halted immediately.
-  - Audio buffer flush: Invokes `synth.pause()` immediately before `synth.cancel()` to force Chromium's audio thread to dump buffered audio without latency.
+| Challenge | Real-World Failure | SousChef Solution |
+| :--- | :--- | :--- |
+| **Acoustic Self-Feedback** | Assistant's voice bleeds into mic, re-triggering recursive timer/step loops | **Imperative Grammar:** Strictly requires leading command verbs (`^set a timer`) and rejects descriptive confirmations (`"timer started"`), backed by a 3s deduplication guard. |
+| **Chromium Memory Leaks** | Continuous Web Speech leaks C++ buffers over multi-hour sessions | **Instance Recycling:** Explicitly detaches handlers, aborts, and instantiates a clean `SpeechRecognition` object on restart. |
+| **Barge-In Interrupts** | User saying "Stop" blends with speaker audio into a single transcript | **Boundary & Alt-Scanning:** Priority #1 `\bstop\b` matching across interim recognition alternatives with instant buffer flush. |
+| **Countertop Idle Drain** | Open kitchen tabs drain battery and leave mic active unattended | **Auto-Sleep Watchdog:** 5-minute inactivity timer and `visibilitychange` background throttling. |
 
 ---
 
 ## 🧪 Comprehensive Offline Test Suite
 
-SousChef includes 43 unit and integration tests executing natively in Node 24 with **zero external dependencies**:
+SousChef includes 53 unit and integration tests executing natively in Node 24 with **zero external dependencies**:
 
 ```bash
 npm test
@@ -134,10 +121,10 @@ npm test
 | :--- | :--- | :---: | :---: |
 | [state-machine.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/state-machine.test.ts) | State transitions, sequential traversal, bounds, observers, state snapshots | 20 | ✅ Passed |
 | [recipe-scaler.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-scaler.test.ts) | Fraction parsing, unicode normalization, phonetic voice text formatting | 10 | ✅ Passed |
+| [command-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/command-parser.test.ts) | Voice intent classification, step timers, feedback exclusions & interrupts | 16 | ✅ Passed |
 | [recipe-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/recipe-parser.test.ts) | Schema.org JSON-LD extraction, ISO durations, yield parsing | 6 | ✅ Passed |
-| [command-parser.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/command-parser.test.ts) | Natural language voice intent classification & STOP interrupts | 6 | ✅ Passed |
 | [integration.test.ts](file:///Users/jdsouza/aifun/recipe%20reader/test/integration.test.ts) | Full cooking lifecycle: load $\rightarrow$ query $\rightarrow$ traverse $\rightarrow$ interrupt $\rightarrow$ complete | 1 | ✅ Passed |
-| **Total** | | **43** | **100% Pass** |
+| **Total** | | **53** | **100% Pass** |
 
 ---
 
@@ -184,40 +171,6 @@ const tts = new ElevenLabsTTSAdapter({
 await tts.speak("Step 1. Preheat your oven to 375 degrees.");
 ```
 2. The state machine and command parser require zero modifications—audio delivery is completely decoupled from recipe logic!
-
----
-
-## 📂 Project Structure
-
-```
-recipe-reader/
-├── package.json               # Zero-dependency configuration & test scripts
-├── server.js                  # Native HTTP server & URL recipe extractor
-├── src/
-│   ├── core/
-│   │   ├── types.ts           # Core types, events & state snapshot definitions
-│   │   ├── state-machine.ts   # Deterministic RecipeStateMachine
-│   │   ├── recipe-scaler.ts   # Fraction math & voice phonetic formatting
-│   │   └── recipe-parser.ts   # Schema.org JSON-LD extractor
-│   ├── voice/
-│   │   ├── command-parser.ts  # Voice intent classification & STOP interrupts
-│   │   ├── tts-provider.ts    # TTSProvider interface + Browser & ElevenLabs adapters
-│   │   └── stt-provider.ts    # SpeechRecognition manager with echo suppression
-│   ├── audio/
-│   │   └── sound-effects.ts   # Synthesized Web Audio chimes (zero MP3 assets needed)
-│   └── fixtures/
-│       └── sample-recipes.ts  # Offline test fixtures
-├── public/
-│   ├── index.html             # High-contrast kitchen mode interface
-│   ├── style.css              # Dark kitchen UI theme
-│   └── app.js                 # Browser application controller
-└── test/
-    ├── state-machine.test.ts  # State machine tests
-    ├── recipe-scaler.test.ts  # Scaler & fraction tests
-    ├── recipe-parser.test.ts  # Parser tests
-    ├── command-parser.test.ts # Intent classification tests
-    └── integration.test.ts    # End-to-end cooking session simulation
-```
 
 ---
 
