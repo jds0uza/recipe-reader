@@ -3,16 +3,15 @@
  * Provides offline caching, background resilience, and instantaneous loading.
  */
 
-const CACHE_NAME = 'souschef-cache-v22';
+const CACHE_NAME = 'souschef-cache-v23';
 
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg'
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg'
 ];
 
 // Pre-cache core app shell on install
