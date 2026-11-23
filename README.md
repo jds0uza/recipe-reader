@@ -18,6 +18,7 @@ Kitchen environments present unique challenges for conversational voice assistan
 3. **Echo cancellation & feedback immunity:** Speech synthesizers can trigger microphone feedback loops if the assistant hears its own voice. SousChef implements active speech suppression with post-utterance decay, multi-alternative interim matching, and instant barge-in voice interrupts.
 4. **Memory stability for long-running kitchen sessions:** Voice assistants left open on countertops must never leak memory. SousChef implements active recognizer recycling, background tab visibility throttling, and a 5-minute inactivity watchdog.
 5. **Lightweight, offline-first reliability:** Zero external npm dependencies. Everything runs natively using modern Web APIs and Node 24 native TypeScript execution.
+6. **Thoughtful kitchen UI:** Designed and prototyped in **Figma** with a high-contrast terracotta and warm-cream palette tailored for countertop visibility, then built in pure semantic HTML/CSS with zero UI frameworks.
 
 ---
 
