@@ -1,7 +1,7 @@
 # 👩‍🍳 SousChef: A Hands-Free Voice Interface for Kitchen Recipe Navigation
 
 > [!NOTE]
-> **Active Development:** SousChef is an active work-in-progress. Features, voice models, and interactions are evolving rapidly.
+> **Active Development:** SousChef is an active work-in-progress. Features, voice models, and interactions are still evolving.
 
 <!-- TODO: Record a 20-second video demo (with ElevenLabs Rachel voice) and embed here  -->
 
