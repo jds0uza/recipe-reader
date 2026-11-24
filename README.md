@@ -1,5 +1,8 @@
 # 👩‍🍳 SousChef: A Hands-Free Voice Interface for Kitchen Recipe Navigation
 
+> [!NOTE]
+> **Active Development:** SousChef is an active work-in-progress. Features, voice models, and interactions are evolving rapidly.
+
 <!-- TODO: Record a 20-second video demo (with ElevenLabs Rachel voice) and embed here  -->
 
 When cooking, it's difficult to constantly tap a screen with messy hands or remember exact ingredient measurements. SousChef solves this with a voice interface for recipe navigation.
@@ -15,43 +18,9 @@ Works offline out of the box using your browser's built-in voice, with a plug-an
 
 ---
 
-## 🏗️ System Architecture
+## 🧭 How It Works: Deterministic State Machine
 
-SousChef is organized into three clean layers designed for deterministic, hands-free kitchen interaction:
-
-```mermaid
-flowchart TD
-    subgraph UI_Layer ["1. Audio & Interaction Layer"]
-        Chef(["👨‍🍳 Cook (Voice or Touch)"])
-        STT["Microphone Listener\n(Speech-to-Text)"]
-        TTS["Voice Narrator\n(Text-to-Speech / ElevenLabs)"]
-        AudioFX["Web Audio Synthesizer\n(Zero-Asset Chimes & Alarms)"]
-    end
-
-    subgraph Parser_Layer ["2. Intent & Ingestion Layer"]
-        CommandParser["Voice Command Parser\n(Imperative Intent Extraction)"]
-        RecipeParser["Recipe & Web Extractor\n(Schema.org JSON-LD / HTML)"]
-    end
-
-    subgraph Core_Engine ["3. Deterministic State Engine"]
-        StateMachine["Recipe State Machine\n(Step Tracking, Progression, Bounds)"]
-        TimerManager["Concurrent Timer Manager\n(Active Countdowns & Web Audio Alarms)"]
-        IngredientEngine["Ingredient Lookup & Scaler\n(Fraction Math & Spoken Readouts)"]
-    end
-
-    Chef -->|Speaks Command| STT
-    Chef -->|Touches Screen| StateMachine
-    STT -->|Raw Spoken Transcript| CommandParser
-    CommandParser -->|Structured Intent| StateMachine
-    CommandParser -->|Timer Intent| TimerManager
-    RecipeParser -->|Parsed Recipe Data| StateMachine
-    StateMachine <--> IngredientEngine
-    StateMachine -->|Current Step Narration| TTS
-    TimerManager -->|Alarm Trigger| AudioFX
-    TimerManager -->|Voice Alerts| TTS
-```
-
-### State Machine Lifecycle
+Unlike conversational chatbots that can lose track of where you are or hallucinate steps, SousChef operates on a strict finite state machine. Cooking progress is 100% deterministic:
 
 ```mermaid
 stateDiagram-v2
@@ -111,23 +80,3 @@ http://localhost:3000
 - **Interruption / Stop:** `"Stop"`, `"Pause"`, `"Quiet"`, `"Be quiet"`, `"Silence"`
 - **Ingredient Queries:** `"How much butter do I need?"`, `"How many eggs?"`, `"List ingredients"`
 
----
-
-## 🎙️ Transitioning to ElevenLabs
-
-When you are ready to plug in ElevenLabs studio voices:
-
-1. Look at [src/voice/tts-provider.ts](src/voice/tts-provider.ts). The `ElevenLabsTTSAdapter` implements the identical `TTSProvider` contract:
-```typescript
-import { ElevenLabsTTSAdapter } from './src/voice/tts-provider.ts';
-
-const tts = new ElevenLabsTTSAdapter({
-  apiKey: process.env.ELEVENLABS_API_KEY,
-  voiceId: '21m00Tcm4TlvDq8ikWAM', // Rachel
-  modelId: 'eleven_turbo_v2_5'
-});
-
-await tts.speak("Step 1. Preheat your oven to 375 degrees.");
-```
-2. The state machine and command parser require zero modifications—audio delivery is completely decoupled from recipe logic!
-3. **Automatic Offline Fallback:** If no API key is set, or if you're cooking offline without internet, SousChef seamlessly falls back to the browser's built-in `window.speechSynthesis` with zero configuration or cost.
