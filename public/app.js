@@ -2273,7 +2273,37 @@ class RecipeApp {
     this.history = [];
 
     this.bindEvents();
-    this.loadSampleRecipe('cookies'); // Preload sample recipe for immediate offline readiness
+    if (!this.checkUrlHashForRecipe()) {
+      this.loadSampleRecipe('cookies'); // Preload sample recipe for immediate offline readiness
+    }
+  }
+
+  checkUrlHashForRecipe() {
+    const hash = window.location.hash;
+    if (!hash) return false;
+
+    if (hash.startsWith('#recipe=')) {
+      try {
+        const raw = decodeURIComponent(hash.slice(8));
+        const recipe = parseRecipeFromPlainText(raw);
+        if (recipe && recipe.steps.length > 0) {
+          this.recordAudit(`Loaded recipe from bookmarklet: ${recipe.title}`);
+          this.loadRecipe(recipe);
+          window.history.replaceState(null, '', window.location.pathname);
+          return true;
+        }
+      } catch (e) {
+        console.warn('Failed to load recipe from hash:', e);
+      }
+    } else if (hash.startsWith('#url=')) {
+      const targetUrl = decodeURIComponent(hash.slice(5));
+      if (targetUrl) {
+        window.history.replaceState(null, '', window.location.pathname);
+        this.fetchRecipeFromUrl(targetUrl);
+        return true;
+      }
+    }
+    return false;
   }
 
   bindEvents() {
@@ -2997,6 +3027,12 @@ class RecipeApp {
     // 4. Client-side extraction via multi-gateway CORS proxies (for GitHub Pages & static hosting)
     const proxyGateways = [
       {
+        name: 'Jina AI Reader',
+        url: `https://r.jina.ai/${input}`,
+        extract: async (res) => res.text()
+      },
+      {
+        name: 'AllOrigins',
         url: `https://api.allorigins.win/get?url=${encodeURIComponent(input)}`,
         extract: async (res) => {
           const data = await res.json();
@@ -3004,32 +3040,46 @@ class RecipeApp {
         }
       },
       {
+        name: 'CodeTabs',
         url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(input)}`,
-        extract: async (res) => res.text()
-      },
-      {
-        url: `https://api.allorigins.win/raw?url=${encodeURIComponent(input)}`,
         extract: async (res) => res.text()
       }
     ];
 
     for (const proxy of proxyGateways) {
       try {
-        this.recordAudit('Attempting extraction via CORS gateway...');
-        const response = await fetch(proxy.url);
+        this.recordAudit(`Attempting extraction via ${proxy.name}...`);
+        const response = await fetch(proxy.url, {
+          headers: {
+            'X-Return-Format': 'markdown'
+          }
+        });
         if (response.ok) {
-          const html = await proxy.extract(response);
-          if (html && html.length > 100) {
-            const recipe = extractRecipeFromHtml(html, input);
-            if (recipe && recipe.steps.length > 0) {
-              this.recordAudit(`Extracted: ${recipe.title}`);
-              this.loadRecipe(recipe);
-              return;
-            }
+          const content = await proxy.extract(response);
+          if (content && content.length > 100) {
+            // Attempt 1: Schema.org JSON-LD extraction
+            try {
+              const recipe = extractRecipeFromHtml(content, input);
+              if (recipe && recipe.steps.length > 0) {
+                this.recordAudit(`Extracted via ${proxy.name}: ${recipe.title}`);
+                this.loadRecipe(recipe);
+                return;
+              }
+            } catch {}
+
+            // Attempt 2: Markdown / Plain Text extraction (e.g. from Jina Reader)
+            try {
+              const recipe = parseRecipeFromPlainText(content);
+              if (recipe && recipe.steps.length > 0) {
+                this.recordAudit(`Extracted via ${proxy.name}: ${recipe.title}`);
+                this.loadRecipe(recipe);
+                return;
+              }
+            } catch {}
           }
         }
       } catch (proxyErr) {
-        console.warn(`Proxy ${proxy.url} failed:`, proxyErr);
+        console.warn(`Proxy ${proxy.name} failed:`, proxyErr);
       }
     }
 

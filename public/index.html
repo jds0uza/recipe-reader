@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f5f1e8" />
   <title>SousChef — Hands-free recipe guidance</title>
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="stylesheet" href="style.css?v=29" />
+  <link rel="stylesheet" href="style.css?v=30" />
   <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg" />
 </head>
 
@@ -133,6 +133,10 @@
               </svg>
             </button>
           </div>
+        </div>
+
+        <div class="bookmarklet-tip">
+          <span>💡 <strong>1-Click Importer:</strong> Drag <a class="bookmarklet-link" href="javascript:(function(){var s=document.querySelector('script[type=&quot;application/ld+json&quot;]');var target=window.location.origin.includes('github.io')?window.location.origin+window.location.pathname:'https://jds0uza.github.io/recipe-reader/';if(s){window.open(target+'#recipe='+encodeURIComponent(s.innerText),'_blank');}else{window.open(target+'#url='+encodeURIComponent(window.location.href),'_blank');}})();" onclick="alert('Drag this button to your browser Bookmarks Bar, then click it on any recipe website!'); return false;">👨‍🍳 Cook with SousChef</a> to your bookmarks bar to import any recipe instantly.</span>
         </div>
       </div>
     </section>
@@ -484,7 +488,7 @@
     </div>
   </div>
 
-  <script type="module" src="app.js?v=29"></script>
+  <script type="module" src="app.js?v=30"></script>
 </body>
 
 </html>

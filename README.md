@@ -51,6 +51,22 @@ stateDiagram-v2
 
 ---
 
+## 🍳 Ingesting Any Recipe
+
+SousChef makes it easy to load recipes from anywhere, even on static hosts like GitHub Pages where external sites typically block third-party browser scraping:
+
+1. **Direct URL Import (Jina AI Reader Gateway):**
+   - Paste any recipe link into the URL input and click **Go!**.
+   - In static hosting mode, SousChef queries a CORS-safe reader gateway to extract either the underlying Schema.org JSON-LD or clean Markdown instructions without hitting browser CORS blocks.
+2. **1-Click Browser Bookmarklet ("Cook with SousChef"):**
+   - Drag the **👨‍🍳 Cook with SousChef** bookmarklet from the app into your browser's bookmarks bar.
+   - Whenever you are browsing a recipe on *any* site (including paywalled or bot-gated pages), click the bookmarklet to open SousChef with the full recipe instantly extracted and ready to cook.
+3. **Instant Offline Samples & Direct Text Paste:**
+   - Select from built-in recipes (*Chocolate Chip Cookies*, *Tuscan Garlic Chicken*, *Blueberry Pancakes*) for 100% offline, zero-network cooking.
+   - Or switch to the **Paste Recipe Text** tab to paste unstructured ingredients and instructions copied from emails, notes, or cookbooks.
+
+---
+
 ## 🚀 Getting Started
 
 Run tests:

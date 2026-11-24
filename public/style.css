@@ -298,6 +298,33 @@ main { width: min(100% - 3rem, 1440px); margin: 0 auto; }
   padding: 0.75rem 1.25rem;
 }
 
+.bookmarklet-tip {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--line);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.bookmarklet-link {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  background: var(--terracotta-pale);
+  color: var(--terracotta);
+  border: 1px solid rgba(199, 91, 57, 0.25);
+  border-radius: 0.35rem;
+  font-weight: 700;
+  cursor: grab;
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+
+.bookmarklet-link:hover {
+  background: var(--terracotta);
+  color: white;
+}
+
 .loader-panel label { display: block; margin-bottom: 0.55rem; font-size: 0.8rem; font-weight: 700; }
 .url-bar { display: flex; position: relative; }
 .input-icon { position: absolute; z-index: 1; left: 0.9rem; top: 50%; color: var(--ink-faint); transform: translateY(-50%); }
